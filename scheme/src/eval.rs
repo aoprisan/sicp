@@ -333,7 +333,6 @@ impl Machine {
             return Ok(());
         }
         let clause = heap.car(clauses).unwrap();
-        let rest = heap.cdr(clauses).unwrap();
         let test = heap.car(clause).ok_or_else(|| bad("cond", heap, clauses))?;
         let body = heap.cdr(clause).unwrap();
         if test == Value::Sym(self.syms.else_) {

@@ -8,6 +8,9 @@ use crate::value::{Idx, SchemeError, Value};
 
 pub const PRELUDE: &str = include_str!("../prelude.scm");
 
+/// Machine steps between GC safe points.
+const GC_SLICE: u64 = 4096;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Status {
     /// Whole buffer evaluated. `values` holds the printed value of each top-level form.
@@ -64,7 +67,7 @@ impl Session {
                 }
             }
             let m = self.machine.as_mut().unwrap();
-            let slice = remaining.min(4096);
+            let slice = remaining.min(GC_SLICE);
             match m.run(&mut self.heap, &mut self.output, slice) {
                 Ok(StepResult::Done(v)) => {
                     self.values.push(print(&self.heap, v));
@@ -92,13 +95,19 @@ impl Session {
     }
 
     fn maybe_gc(&mut self) {
+        let extra = self.machine.as_ref().map(|m| m.roots()).unwrap_or_default();
+        self.maybe_gc_with(&extra);
+    }
+
+    /// GC at a machine step boundary. `extra` carries the roots of the evaluation in progress
+    /// plus any data the caller still owns; `transcript` runs a machine that is not in
+    /// `self.machine`, so it has to hand those in.
+    fn maybe_gc_with(&mut self, extra: &[Value]) {
         if !self.heap.should_gc() {
             return;
         }
         let mut roots = vec![Value::Env(self.global)];
-        if let Some(m) = &self.machine {
-            roots.extend(m.roots());
-        }
+        roots.extend_from_slice(extra);
         for d in &self.pending {
             roots.push(d.value);
         }
@@ -117,10 +126,24 @@ impl Session {
             Ok(d) => d,
             Err(e) => return format!("{}\n", e),
         };
-        for d in data {
+        for (i, d) in data.iter().enumerate() {
             self.output.clear();
             let mut m = Machine::new(&mut self.heap, d.value, self.global);
-            match m.run(&mut self.heap, &mut self.output, u64::MAX) {
+            // Top-level forms we have not reached yet are live data, but they live in `data`
+            // rather than the heap roots, so they have to be rooted explicitly.
+            let unread: Vec<Value> = data[i + 1..].iter().map(|d| d.value).collect();
+            // Run in slices so a long-running form still reaches a GC safe point.
+            let res = loop {
+                match m.run(&mut self.heap, &mut self.output, GC_SLICE) {
+                    Ok(StepResult::OutOfBudget) => {
+                        let mut roots = m.roots();
+                        roots.extend_from_slice(&unread);
+                        self.maybe_gc_with(&roots);
+                    }
+                    other => break other,
+                }
+            };
+            match res {
                 Ok(StepResult::Done(v)) => {
                     out.push_str(&self.output);
                     let p = print(&self.heap, v);
@@ -136,7 +159,7 @@ impl Session {
                     out.push_str(&format!("{}\n", e));
                 }
             }
-            self.maybe_gc();
+            self.maybe_gc_with(&unread);
         }
         out
     }

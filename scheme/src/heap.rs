@@ -208,28 +208,23 @@ impl Heap {
             }
             self.marks[i as usize] = true;
             let mut children: Vec<Idx> = Vec::new();
-            let mut pv = |v: Value| {
-                if let Some(j) = v.is_heap() {
-                    children.push(j);
-                }
-            };
             match &self.cells[i as usize] {
                 Cell::Pair(a, d) => {
-                    pv(*a);
-                    pv(*d);
+                    push_val(&mut children, *a);
+                    push_val(&mut children, *d);
                 }
                 Cell::Closure { body, env, .. } => {
-                    pv(*body);
+                    push_val(&mut children, *body);
                     children.push(*env);
                 }
                 Cell::Promise { value, expr, env, .. } => {
-                    pv(*value);
-                    pv(*expr);
+                    push_val(&mut children, *value);
+                    push_val(&mut children, *expr);
                     children.push(*env);
                 }
                 Cell::Env { vars, parent } => {
                     for v in vars.values() {
-                        pv(*v);
+                        push_val(&mut children, *v);
                     }
                     if let Some(p) = parent {
                         children.push(*p);
@@ -242,30 +237,30 @@ impl Heap {
                     match frame {
                         Frame::Args { done, rest, env } => {
                             for v in done {
-                                pv(*v);
+                                push_val(&mut children, *v);
                             }
-                            pv(*rest);
+                            push_val(&mut children, *rest);
                             children.push(*env);
                         }
                         Frame::IfK { conseq, alt, env } => {
-                            pv(*conseq);
-                            pv(*alt);
+                            push_val(&mut children, *conseq);
+                            push_val(&mut children, *alt);
                             children.push(*env);
                         }
                         Frame::Seq { rest, env }
                         | Frame::CondK { clauses: rest, env }
                         | Frame::AndK { rest, env }
                         | Frame::OrK { rest, env } => {
-                            pv(*rest);
+                            push_val(&mut children, *rest);
                             children.push(*env);
                         }
                         Frame::Define { env, .. } | Frame::Set { env, .. } => children.push(*env),
                         Frame::LetK { done, rest, body, env, .. } => {
                             for v in done {
-                                pv(*v);
+                                push_val(&mut children, *v);
                             }
-                            pv(*rest);
-                            pv(*body);
+                            push_val(&mut children, *rest);
+                            push_val(&mut children, *body);
                             children.push(*env);
                         }
                         Frame::Force { promise } => children.push(*promise),
@@ -283,6 +278,13 @@ impl Heap {
             }
         }
         self.allocs_since_gc = 0;
+    }
+}
+
+/// Push `v` onto the mark stack's child list if it refers to a heap cell.
+fn push_val(children: &mut Vec<Idx>, v: Value) {
+    if let Some(j) = v.is_heap() {
+        children.push(j);
     }
 }
 
