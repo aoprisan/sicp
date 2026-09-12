@@ -145,6 +145,15 @@ impl<'a> Reader<'a> {
                 }
                 Ok(Value::Str(heap.alloc(Cell::Str(s))))
             }
+            Some('#') if self.src[self.pos..].starts_with("#(") => {
+                // #(1 2 3): read the list that follows, then pack it into a vector.
+                self.bump();
+                let list = self.read(heap)?;
+                match heap.list_to_vec(list) {
+                    Some(elems) => Ok(heap.vector(elems)),
+                    None => self.fail("Ill-formed vector literal", start),
+                }
+            }
             Some('#') => {
                 let tok = self.read_token();
                 match tok.as_str() {

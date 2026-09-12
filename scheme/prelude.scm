@@ -78,6 +78,24 @@
   (if (> low high) '() (cons low (enumerate-interval (+ low 1) high))))
 (define (flatmap proc seq) (accumulate append '() (map proc seq)))
 
+;; Higher-order vector operations live here rather than in Rust: a primitive cannot call back
+;; into the evaluator to apply a Scheme procedure.
+(define (vector-map f v)
+  (let ((n (vector-length v)))
+    (let ((result (make-vector n #f)))
+      (define (loop i)
+        (if (= i n)
+            result
+            (begin (vector-set! result i (f (vector-ref v i))) (loop (+ i 1)))))
+      (loop 0))))
+(define (vector-for-each f v)
+  (let ((n (vector-length v)))
+    (define (loop i)
+      (if (= i n)
+          'done
+          (begin (f (vector-ref v i)) (loop (+ i 1)))))
+    (loop 0)))
+
 (define (stream-null? s) (null? s))
 (define (stream-car s) (car s))
 (define (stream-cdr s) (force (cdr s)))

@@ -21,18 +21,23 @@ first-class:
 | `eq?`, `eqv?`, `equal?` | 2 | `eq?` on pairs is handle identity |
 | `symbol->string`, `string->symbol`, `number->string`, `string-append` | 2 | |
 | `exact->inexact`, `inexact->exact`, `quotient`, `remainder`, `modulo`, `gcd`, `abs`, `min`, `max`, `sqrt`, `exp`, `log`, `sin`, `cos`, `atan`, `expt`, `floor`, `round`, `truncate`, `even?`, `odd?`, `zero?`, `positive?`, `negative?`, `=`, `<`, `>`, `<=`, `>=`, `1+`, `-1+` | 1 | |
+| `vector?`, `make-vector`, `vector`, `vector-length`, `vector-ref`, `vector-set!`, `vector->list`, `list->vector`, `vector-fill!`, `vector-grow`, `subvector`, `vector-map`, `vector-for-each`, `#(...)` literals | 5.3 | the register machine's memory model; `make-vector` fills with `#f` like MIT, `equal?` compares element-wise |
 | picture language: `make-vect`, `vector-xcor`, …, `make-frame`, `make-segment`, `segments->painter`, `paint`, `wave`, `rogers`, `einstein` primitives | 2.2.4 | `paint` returns a `Picture` value; host renders |
 
 Prelude (`scheme/prelude.scm`) defines `square`, `cube`, `average`, `inc`, `dec`, `identity`,
-`compose`, `accumulate`, `enumerate-interval`, `flatmap`, stream helpers — visible to users.
+`compose`, `accumulate`, `enumerate-interval`, `flatmap`, every `c[ad]{2,4}r` composition,
+`vector-map`/`vector-for-each` (a primitive cannot apply a Scheme procedure), and the stream
+helpers — all visible to users.
 
 ### 1.2 Values & heap
 ```
 enum Value { Nil, Bool, Int(i64), Big(idx), Rat(idx), Real(f64), Sym(idx), Str(idx),
              Pair(idx), Closure(idx), Prim(u16), Promise(idx), Env(idx), Cont(idx),
-             Picture(idx), Unspecified, Eof }
+             Picture(idx), Vector(idx), Unspecified, Eof }
 ```
 - `Heap` = `Vec<Cell>` arena with free list; handles are `u32`.
+- `Cell::Vector(Vec<Value>)` for vectors; the mark phase traces into their elements, so a
+  vector can be the only thing keeping its contents alive.
 - Mark/sweep, roots = current CEK state + globals + host-pinned handles. GC runs when allocation
   count since last GC exceeds threshold; never mid-primitive.
 - Symbols interned in a `Vec<String>` + `HashMap`.

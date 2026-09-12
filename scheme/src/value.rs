@@ -20,6 +20,7 @@ pub enum Value {
     Env(Idx),
     Cont(Idx),
     Picture(Idx),
+    Vector(Idx),
     Unspecified,
     Eof,
 }
@@ -29,7 +30,8 @@ impl Value {
     pub fn is_heap(self) -> Option<Idx> {
         match self {
             Value::Big(i) | Value::Rat(i) | Value::Str(i) | Value::Pair(i) | Value::Closure(i)
-            | Value::Promise(i) | Value::Env(i) | Value::Cont(i) | Value::Picture(i) => Some(i),
+            | Value::Promise(i) | Value::Env(i) | Value::Cont(i) | Value::Picture(i)
+            | Value::Vector(i) => Some(i),
             _ => None,
         }
     }

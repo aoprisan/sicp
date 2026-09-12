@@ -58,3 +58,41 @@ fn interrupt_and_resume() {
     }
     assert!(matches!(st, Status::Done { .. }), "{:?}", st);
 }
+
+/// A vector is the only thing holding its elements, so the GC has to trace into it. Without
+/// that, this either reports corruption or panics on a dangling handle.
+#[test]
+fn vectors_keep_elements_alive_across_gc() {
+    let mut s = Session::new();
+    let t = s.transcript(
+        "(define v (make-vector 50 #f))
+         (define (fill i)
+           (if (= i 50) 'done
+               (begin (vector-set! v i (list i (* i i) (number->string i))) (fill (+ i 1)))))
+         (fill 0)
+         (define (churn n) (if (= n 0) 'done (begin (list 1 2 3 4 5 6 7 8) (churn (- n 1)))))
+         (churn 100000)
+         (define (check i)
+           (cond ((= i 50) 'all-intact)
+                 ((equal? (vector-ref v i) (list i (* i i) (number->string i))) (check (+ i 1)))
+                 (else (list 'corrupt-at i))))
+         (check 0)",
+    );
+    assert!(t.contains(";Value: all-intact"), "{}", t);
+}
+
+/// Same, for a vector reachable only through the running machine's environment chain.
+#[test]
+fn locally_held_vectors_survive_gc() {
+    let mut s = Session::new();
+    let t = s.transcript(
+        "(define (churn n) (if (= n 0) 'done (begin (list 1 2 3 4 5 6 7 8) (churn (- n 1)))))
+         (define (local-test)
+           (let ((w (make-vector 10 #f)))
+             (vector-set! w 3 (list 'deep (list 'nested \"str\")))
+             (churn 100000)
+             (vector-ref w 3)))
+         (local-test)",
+    );
+    assert!(t.contains(";Value: (deep (nested \"str\"))"), "{}", t);
+}

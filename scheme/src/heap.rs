@@ -32,6 +32,7 @@ pub enum Cell {
     Env { vars: HashMap<Idx, Value>, parent: Option<Idx> },
     Kont { frame: Frame, next: Option<Idx> },
     Picture(Vec<u8>),
+    Vector(Vec<Value>),
 }
 
 pub struct Heap {
@@ -93,6 +94,28 @@ impl Heap {
 
     pub fn cons(&mut self, a: Value, d: Value) -> Value {
         Value::Pair(self.alloc(Cell::Pair(a, d)))
+    }
+    pub fn vector(&mut self, elems: Vec<Value>) -> Value {
+        Value::Vector(self.alloc(Cell::Vector(elems)))
+    }
+    pub fn vector_elems(&self, v: Value) -> Option<&[Value]> {
+        if let Value::Vector(i) = v {
+            if let Cell::Vector(e) = self.get(i) {
+                return Some(e);
+            }
+        }
+        None
+    }
+    pub fn vector_set(&mut self, v: Value, k: usize, val: Value) -> bool {
+        if let Value::Vector(i) = v {
+            if let Cell::Vector(e) = self.get_mut(i) {
+                if k < e.len() {
+                    e[k] = val;
+                    return true;
+                }
+            }
+        }
+        false
     }
     pub fn car(&self, v: Value) -> Option<Value> {
         if let Value::Pair(i) = v {
@@ -268,6 +291,11 @@ impl Heap {
                         }
                         Frame::Force { promise } => children.push(*promise),
                         Frame::Halt => {}
+                    }
+                }
+                Cell::Vector(elems) => {
+                    for v in elems {
+                        push_val(&mut children, *v);
                     }
                 }
                 Cell::Str(_) | Cell::Big(_) | Cell::Rat(_) | Cell::Picture(_) | Cell::Free(_) => {}

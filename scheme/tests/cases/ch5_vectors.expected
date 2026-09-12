@@ -1,0 +1,38 @@
+;Value: v
+;Value: #(0 0 0)
+;Unspecified return value
+;Unspecified return value
+;Value: #(a "s" 0)
+;Value: a
+;Value: 0
+;Value: 3
+;Value: #(1 2 3)
+;Value: #(#f #f)
+;Value: (1 2 3)
+;Value: #(1 2 3)
+;Value: #t
+;Value: #f
+;Value: #(1 2 3)
+;Value: #t
+;Value: #f
+;Value: #t
+;Value: #(1 2 #f #f)
+;Value: #(2 3)
+;Value: #(1 4 9)
+;The object 10, passed as the second argument to vector-ref, is not in the correct range.
+;The object (1 2), passed as the first argument to vector-ref, is not the correct type.
+;The object (1 2), passed as the first argument to vector-length, is not the correct type.
+;Value: memory-size
+;Value: the-cars
+;Value: the-cdrs
+;Value: free-ptr
+;Value: nil-ptr
+;Value: alloc-pair
+;Value: list->memory
+;Value: memory->list
+;Value: l1
+;Value: (1 2 3 4 5)
+;Value: 5
+;Value: #(5 4 3 2 1)
+;Value: #(-1 0 1 2 3)
+;Value: 1

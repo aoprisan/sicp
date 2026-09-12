@@ -331,6 +331,113 @@ pub static PRIMS: &[(&str, PrimFn)] = &[
     ("void", |_, _, _| Ok(Value::Unspecified)),
     ("gc-flip", |_, _, _| Ok(Value::Unspecified)),
     ("user-initial-environment", |_, _, _| err("internal: replaced at install")),
+    ("vector?", |_, a, _| Ok(Value::Bool(matches!(a.first(), Some(Value::Vector(_)))))),
+    ("make-vector", |h, a, _| {
+        if a.is_empty() {
+            return err("make-vector has been called with 0 arguments; it requires at least 1 argument.");
+        }
+        let n = match a[0] {
+            // MIT fills with #f when no fill is given.
+            Value::Int(n) if n >= 0 => n as usize,
+            v => return wrong_range(h, v, 1, "make-vector"),
+        };
+        let fill = a.get(1).copied().unwrap_or(Value::Bool(false));
+        Ok(h.vector(vec![fill; n]))
+    }),
+    ("vector", |h, a, _| Ok(h.vector(a.to_vec()))),
+    ("vector-length", |h, a, _| {
+        check_arity("vector-length", a, 1)?;
+        match h.vector_elems(a[0]) {
+            Some(e) => Ok(Value::Int(e.len() as i64)),
+            None => wrong_type(h, a[0], 1, "vector-length"),
+        }
+    }),
+    ("vector-ref", |h, a, _| {
+        check_arity("vector-ref", a, 2)?;
+        let len = match h.vector_elems(a[0]) {
+            Some(e) => e.len(),
+            None => return wrong_type(h, a[0], 1, "vector-ref"),
+        };
+        match a[1] {
+            Value::Int(k) if k >= 0 && (k as usize) < len => {
+                Ok(h.vector_elems(a[0]).unwrap()[k as usize])
+            }
+            v => wrong_range(h, v, 2, "vector-ref"),
+        }
+    }),
+    ("vector-set!", |h, a, _| {
+        check_arity("vector-set!", a, 3)?;
+        let len = match h.vector_elems(a[0]) {
+            Some(e) => e.len(),
+            None => return wrong_type(h, a[0], 1, "vector-set!"),
+        };
+        match a[1] {
+            Value::Int(k) if k >= 0 && (k as usize) < len => {
+                h.vector_set(a[0], k as usize, a[2]);
+                Ok(Value::Unspecified)
+            }
+            v => wrong_range(h, v, 2, "vector-set!"),
+        }
+    }),
+    ("vector->list", |h, a, _| {
+        check_arity("vector->list", a, 1)?;
+        match h.vector_elems(a[0]) {
+            Some(e) => {
+                let items = e.to_vec();
+                Ok(h.list(&items))
+            }
+            None => wrong_type(h, a[0], 1, "vector->list"),
+        }
+    }),
+    ("list->vector", |h, a, _| {
+        check_arity("list->vector", a, 1)?;
+        match h.list_to_vec(a[0]) {
+            Some(items) => Ok(h.vector(items)),
+            None => wrong_type(h, a[0], 1, "list->vector"),
+        }
+    }),
+    ("vector-fill!", |h, a, _| {
+        check_arity("vector-fill!", a, 2)?;
+        let len = match h.vector_elems(a[0]) {
+            Some(e) => e.len(),
+            None => return wrong_type(h, a[0], 1, "vector-fill!"),
+        };
+        for k in 0..len {
+            h.vector_set(a[0], k, a[1]);
+        }
+        Ok(Value::Unspecified)
+    }),
+    ("vector-grow", |h, a, _| {
+        check_arity("vector-grow", a, 2)?;
+        let old = match h.vector_elems(a[0]) {
+            Some(e) => e.to_vec(),
+            None => return wrong_type(h, a[0], 1, "vector-grow"),
+        };
+        match a[1] {
+            Value::Int(n) if n >= 0 && (n as usize) >= old.len() => {
+                let mut elems = old;
+                elems.resize(n as usize, Value::Bool(false));
+                Ok(h.vector(elems))
+            }
+            v => wrong_range(h, v, 2, "vector-grow"),
+        }
+    }),
+    ("subvector", |h, a, _| {
+        check_arity("subvector", a, 3)?;
+        let elems = match h.vector_elems(a[0]) {
+            Some(e) => e.to_vec(),
+            None => return wrong_type(h, a[0], 1, "subvector"),
+        };
+        let start = match a[1] {
+            Value::Int(n) if n >= 0 && (n as usize) <= elems.len() => n as usize,
+            v => return wrong_range(h, v, 2, "subvector"),
+        };
+        let end = match a[2] {
+            Value::Int(n) if (n as usize) <= elems.len() && n as usize >= start => n as usize,
+            v => return wrong_range(h, v, 3, "subvector"),
+        };
+        Ok(h.vector(elems[start..end].to_vec()))
+    }),
 ];
 
 pub fn prim_name(p: u16) -> &'static str {
@@ -580,6 +687,21 @@ pub fn equal(h: &Heap, a: Value, b: Value) -> bool {
                 stack.push((d1, d2));
                 stack.push((a1, a2));
             }
+            (Value::Vector(x), Value::Vector(y)) => {
+                if x == y {
+                    continue;
+                }
+                let (ex, ey) = match (h.get(x), h.get(y)) {
+                    (Cell::Vector(ex), Cell::Vector(ey)) => (ex, ey),
+                    _ => unreachable!(),
+                };
+                if ex.len() != ey.len() {
+                    return false;
+                }
+                for (a, b) in ex.iter().zip(ey.iter()) {
+                    stack.push((*a, *b));
+                }
+            }
             (Value::Str(x), Value::Str(y)) => {
                 if !matches!((h.get(x), h.get(y)), (Cell::Str(p), Cell::Str(q)) if p == q) {
                     return false;
@@ -606,6 +728,10 @@ fn check_arity(who: &str, a: &[Value], n: usize) -> Result<()> {
 
 fn ordinal(n: usize) -> &'static str {
     ["zeroth", "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth"].get(n).copied().unwrap_or("nth")
+}
+
+pub fn wrong_range<T>(h: &Heap, v: Value, argno: usize, who: &str) -> Result<T> {
+    err(format!("The object {}, passed as the {} argument to {}, is not in the correct range.", print(h, v), ordinal(argno), who))
 }
 
 pub fn wrong_type<T>(h: &Heap, v: Value, argno: usize, who: &str) -> Result<T> {

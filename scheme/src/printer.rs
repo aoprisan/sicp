@@ -105,8 +105,23 @@ fn write(heap: &Heap, v: Value, out: &mut String, depth: usize, mode: Mode) {
         Value::Promise(i) => out.push_str(&format!("#[promise {}]", i)),
         Value::Env(i) => out.push_str(&format!("#[environment {}]", i)),
         Value::Cont(i) => out.push_str(&format!("#[continuation {}]", i)),
+        Value::Vector(i) => {
+            out.push_str("#(");
+            if let Cell::Vector(elems) = heap.get(i) {
+                for (n, e) in elems.iter().enumerate() {
+                    if n > 0 {
+                        out.push(' ');
+                    }
+                    write(heap, *e, out, depth + 1, mode);
+                }
+            }
+            out.push(')');
+        }
         Value::Picture(i) => out.push_str(&format!("#[picture {}]", i)),
-        Value::Unspecified => {}
+        // MIT has a distinct object here. Printing it as nothing made a one-element list of it
+        // come out as `()`, so it needs a name even though the REPL reports it as
+        // ";Unspecified return value" rather than as a value.
+        Value::Unspecified => out.push_str("#!unspecific"),
         Value::Eof => out.push_str("#[eof]"),
     }
 }
