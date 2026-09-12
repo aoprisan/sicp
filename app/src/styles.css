@@ -127,14 +127,76 @@ body { margin: 0; min-height: 100dvh; background: var(--paper); }
 :focus-visible { outline: 2px solid var(--peri); outline-offset: 2px; }
 
 /* ── Running head ─────────────────────────────────────────────────────────── */
+/* The only chrome the reader has: where you are, and the way to everywhere else. The safe-area
+   inset goes on top — with viewport-fit=cover the notch is above the header, not below it. */
 #crumb {
   position: sticky; top: 0; z-index: 2;
-  padding: 9px 18px calc(9px + env(safe-area-inset-top, 0px));
+  display: flex; align-items: center; gap: 8px;
+  padding: env(safe-area-inset-top, 0px) 18px 0;
   font-family: var(--display);
   font-size: 0.66rem; letter-spacing: 0.13em; text-transform: uppercase;
   color: var(--ink-soft); background: var(--paper);
   border-bottom: 1px solid var(--rule);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#crumb-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Three rules, drawn rather than set: the display face has no glyph for this that matches. */
+#contents-open {
+  flex: none; display: grid; place-items: center;
+  width: 40px; height: 40px; margin-left: -11px;
+  padding: 0; border: 0; background: none; color: var(--ink-soft); cursor: pointer;
+}
+#contents-open svg { width: 17px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
+#contents-open:active { color: var(--maroon); }
+
+/* ── Contents ─────────────────────────────────────────────────────────────── */
+/* A drawer, not a page: the book is long, and losing your place to look something up is the
+   thing a printed table of contents never does to you. Entries are links, so the back button
+   and a bookmarked chapter both keep working. */
+/* Visibility flips at once on the way in — a panel that is still `hidden` cannot take focus, and
+   the menu opens on the entry you are reading — and only after the slide on the way out. */
+#veil {
+  position: fixed; inset: 0; z-index: 4; background: rgb(20 18 16 / 0.42);
+  opacity: 0; visibility: hidden;
+  transition: opacity 180ms ease-out, visibility 0s linear 180ms;
+}
+#contents {
+  position: fixed; z-index: 5; inset: 0 auto 0 0; width: min(84vw, 20rem);
+  overflow-y: auto; overscroll-behavior: contain;
+  background: var(--paper); border-right: 1px solid var(--rule-firm);
+  box-shadow: 2px 0 16px rgb(0 0 0 / 0.16);
+  padding: env(safe-area-inset-top, 0px) 0 calc(14px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-101%); visibility: hidden;
+  transition: transform 190ms ease-out, visibility 0s linear 190ms;
+}
+body.nav-open #veil { opacity: 1; visibility: visible; transition: opacity 180ms ease-out, visibility 0s; }
+body.nav-open #contents { transform: none; visibility: visible; transition: transform 190ms ease-out, visibility 0s; }
+#contents .toc-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.7rem 0.6rem 0.7rem 1.15rem;
+  font-family: var(--display); font-size: 0.66rem; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--ink-soft);
+  border-bottom: 1px solid var(--rule);
+}
+#contents .toc-close {
+  width: 40px; height: 40px; padding: 0; border: 0; background: none; cursor: pointer;
+  font-family: var(--display); font-size: 1.5rem; line-height: 1; color: var(--ink-soft);
+}
+#contents .toc-close:active { color: var(--maroon); }
+#contents .toc { list-style: none; margin: 0; padding: 0.4rem 0 0; }
+#contents .toc a {
+  display: flex; gap: 0.5em; align-items: baseline;
+  min-height: 44px; padding: 0.55rem 1.15rem; box-sizing: border-box;
+  font-family: var(--display); font-size: 0.87rem; line-height: 1.3;
+  color: var(--ink); text-decoration: none;
+}
+#contents .toc .l1 a { padding-left: 2.3rem; font-size: 0.8rem; color: var(--ink-soft); }
+#contents .toc .num { flex: none; color: var(--peri); font-feature-settings: "lnum" 1; }
+#contents .toc a.on, #contents .toc a.on .num { color: var(--maroon); }
+#contents .toc a.on { background: var(--paper-edge); }
+#contents .toc a:focus-visible { outline-offset: -3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  #contents, #veil { transition: none; }
 }
 
 /* ── The page ─────────────────────────────────────────────────────────────── */
@@ -308,6 +370,17 @@ body { margin: 0; min-height: 100dvh; background: var(--paper); }
 #reader figcaption strong { color: var(--ink); }
 /* Licence marks in running text are glyphs, not plates. */
 #reader img.icon { padding: 0; background: none; vertical-align: -0.15em; }
+
+/* ── Page turn ────────────────────────────────────────────────────────────── */
+/* What a book says at the foot of a section: what came before, what comes next. */
+#reader nav.turn {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem 1.2rem;
+  margin-top: 2.8em; padding-top: 1rem; border-top: 1px solid var(--rule);
+  font-family: var(--display); font-size: 0.82rem; line-height: 1.35;
+}
+#reader nav.turn a[href] { color: var(--maroon); text-decoration: none; text-wrap: balance; }
+#reader nav.turn .prev { grid-column: 1; }
+#reader nav.turn .next { grid-column: 2; text-align: right; }
 
 /* ── Footnotes, contents, index ───────────────────────────────────────────── */
 #reader a.footnote_link { font-size: 0.7em; vertical-align: super; line-height: 0; }

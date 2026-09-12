@@ -1,4 +1,6 @@
 /// Loads book chunks and wires Run / → scratch chips onto every code block.
+import type { Entry } from "./contents";
+
 export class Reader {
   onRun: (src: string, resultEl: HTMLElement) => void = () => {};
   onScratch: (src: string) => void = () => {};
@@ -27,4 +29,24 @@ export class Reader {
     });
     window.scrollTo(0, 0);
   }
+
+  /** The foot of the page, where a book says what comes next. Call after `load`, which clears it. */
+  turn(prev: Entry | null, next: Entry | null) {
+    if (!prev && !next) return;
+    const nav = document.createElement("nav");
+    nav.className = "turn";
+    nav.setAttribute("aria-label", "Book");
+    if (prev) nav.appendChild(turnLink(prev, "prev"));
+    if (next) nav.appendChild(turnLink(next, "next"));
+    this.root.appendChild(nav);
+  }
+}
+
+function turnLink(to: Entry, dir: "prev" | "next"): HTMLAnchorElement {
+  const a = document.createElement("a");
+  a.className = dir;
+  a.rel = dir;
+  a.href = `#${to.id}`;
+  a.textContent = dir === "prev" ? `‹ ${to.label}` : `${to.label} ›`;
+  return a;
 }
