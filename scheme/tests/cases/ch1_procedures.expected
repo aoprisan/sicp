@@ -1,0 +1,25 @@
+;Value: improve
+;Value: good-enough?
+;Value: sqrt-iter
+;Value: my-sqrt
+;Value: 3.00009155413138
+;Value: tolerance
+;Value: fixed-point
+;Value: 1.4142135623746899
+;Value: deriv-num
+;Value: newton-transform
+;Value: newtons-method
+;Value: 1.4142135623822438
+;Value: a
+;Value: 1024
+;Value: 65536
+;Value: count-change
+;Value: 292
+;Value: smallest-divisor
+;Value: find-divisor
+;Value: prime?
+;Value: (2 3 5 7 11 13 17 19 23 29)
+;Value: factorial
+;Value: 815915283247897734345611269596115894272000000000
+;Value: 1267650600228229401496703205376
+;Value: .14285714285714285
