@@ -216,9 +216,16 @@ body.nav-open #contents { transform: none; visibility: visible; transition: tran
 #reader abbr { font-variant-caps: all-small-caps; letter-spacing: 0.04em; }
 #reader hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
 /* MathML never breaks inside a row, so a formula set late in a line used to push the whole page
-   sideways. As an atomic inline box it wraps to the next line instead. */
-#reader math { font-family: STIXGeneral, var(--text); display: inline-block; max-width: 100%; }
-#reader math[display="block"] { display: block; overflow-x: auto; margin: 1em 0; }
+   sideways, and a wide displayed one had nowhere to go on a 360px screen. Both are fixed on the
+   wrapper the book pipeline puts around each formula, never on <math> itself: a browser lays a
+   formula out with its math engine only while the element keeps its own `display`, and overriding
+   it — even to `block` — drops the whole thing back to ordinary CSS boxes, fraction bars ruled
+   across the column and a summation's limits stacked under the sign. */
+#reader math { font-family: STIXGeneral, var(--text); }
+#reader span.math { display: inline-block; max-width: 100%; }   /* wraps to the next line whole */
+/* Swipe a wide one. The padding is the ink a summation sign or a tall fraction hangs below its
+   own box: a scroll box would otherwise shave a few pixels off every second formula. */
+#reader span.math-block { display: block; overflow-x: auto; margin: 0.5em 0; padding-block: 0.5em; }
 #reader math, #reader code { white-space: normal; }
 
 /* Headings. Numbering is periwinkle and set apart, as in the printed book. */

@@ -103,8 +103,16 @@ Seed cases are in `tests/cases/`; the book pipeline can emit more (`just book` w
   `<img class="fig" data-src="fig/…svg" alt="Figure n.m">` and the reader sets `src` to
   `${BASE_URL}book/<data-src>` after injecting the chunk. Chunks therefore stay base-agnostic
   (same JSON serves `/` and `/sicp/`), and a stale relative URL can no longer fall back to
-  `index.html` and load the whole app inside a figure box. Math already rendered (MathJax → keep,
-  or pre-render to SVG with `mathjax-node` at build).
+  `index.html` and load the whole app inside a figure box.
+- Formulas are the edition's own MathML, kept as markup and laid out by the browser. The builder
+  wraps each one in `<span class="math">`, or `<span class="math-block">` where the source says
+  `display="block"`, and that wrapper — never `<math>` itself — carries what a 360px column needs:
+  the clamp that keeps a formula set late in a line from pushing the page sideways, and the
+  horizontal scroll for a displayed one too wide to fit. A browser lays MathML out with its math
+  engine only for as long as the element keeps the `display` it was born with; override it, to
+  `inline-block` or to `block` alike, and the formula falls back to ordinary CSS boxes — fraction
+  bars ruled across the column, a summation's limits stacked underneath the sign. A span rather
+  than a div because the book sets displayed equations inside the paragraph that introduces them.
 - The Texinfo nav bars and jump-to-top arrows are dropped, `<script>` tags stripped, and
   cross-references (`1_002e3.xhtml#…`) rewritten to the chunk hash (`#c002`) so links stay inside
   the app. `breadcrumb` is the running head: `[number, title]` from the section heading.
