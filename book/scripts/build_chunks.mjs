@@ -50,6 +50,7 @@ for (const f of files) {
   body = stripWebNav(body);
   body = rewriteLinks(body);
   body = rewriteFigures(body, assets);
+  body = wrapMath(body);
   const code = [...body.matchAll(/<pre class="lisp"[^>]*>([\s\S]*?)<\/pre>/g)].map((m, i) => ({
     id: `${f}#code${i}`,
     src: decodeEntities(m[1].replace(/<[^>]+>/g, "")),
@@ -187,6 +188,20 @@ function copyFonts() {
   const css = readFileSync(join(fontDir, "fonts.css"), "utf8")
     .replace(/(@font-face\s*\{)/g, "$1\n  font-display: swap;");
   write(join(outFonts, "fonts.css"), css);
+}
+
+// A browser lays out MathML with its own math engine, and only for as long as the <math> element
+// keeps the `display` it was born with. Give it any CSS display — `inline-block` to stop a wide
+// formula pushing the page sideways, `block` to set a displayed one off — and the engine hands the
+// formula back to ordinary CSS box layout: fraction bars run the full width of the column,
+// numerators sit above them like paragraphs, and a summation's limits stack under the sign. The
+// page still needs a box it can clamp and scroll on a phone, so give it one of its own around each
+// formula and leave the math itself alone (`app/src/styles.css`, `span.math`/`span.math-block`).
+// A span, not a div: the book sets displayed equations inside the paragraph that introduces them,
+// and a block element there would split the paragraph in two.
+function wrapMath(html) {
+  return html.replace(/<math\b([^>]*)>[\s\S]*?<\/math>/g, (m, attrs) =>
+    `<span class="${/\bdisplay="block"/.test(attrs) ? "math-block" : "math"}">${m}</span>`);
 }
 
 // SICP embeds every figure as <object data="fig/…svg">. Injected into the reader those relative
