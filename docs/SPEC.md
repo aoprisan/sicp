@@ -81,15 +81,30 @@ Seed cases are in `tests/cases/`; the book pipeline can emit more (`just book` w
 - `build_chunks.mjs`: parse `html/`, split by `<h3>`/exercise, emit
   `app/public/book/{toc.json, chunks/<id>.json}`. Each chunk: `{id, title, breadcrumb[], html,
   code[]: {id, src, expected?}, exercises[]: {id, html, referencedCode[]}}`.
-- Figures copied as SVG; math already rendered (MathJax → keep, or pre-render to SVG with
-  `mathjax-node` at build).
-- Sanitise HTML with `sanitize-html`; strip nav.
+- Figures copied as SVG into `app/public/book/fig/`. The book embeds them as
+  `<object data="fig/…svg">`; the builder rewrites each one to
+  `<img class="fig" data-src="fig/…svg" alt="Figure n.m">` and the reader sets `src` to
+  `${BASE_URL}book/<data-src>` after injecting the chunk. Chunks therefore stay base-agnostic
+  (same JSON serves `/` and `/sicp/`), and a stale relative URL can no longer fall back to
+  `index.html` and load the whole app inside a figure box. Math already rendered (MathJax → keep,
+  or pre-render to SVG with `mathjax-node` at build).
+- The Texinfo nav bars and jump-to-top arrows are dropped, `<script>` tags stripped, and
+  cross-references (`1_002e3.xhtml#…`) rewritten to the chunk hash (`#c002`) so links stay inside
+  the app. `breadcrumb` is the running head: `[number, title]` from the section heading.
+- The edition's webfonts (Linux Libertine/Biolinum, Inconsolata LGC, STIX) are copied to
+  `app/public/book/fonts/` with `font-display: swap`, and loaded from `index.html`; the reader is
+  set in the same faces as the book, offline. Licences ship alongside (see `book/ATTRIBUTION.md`).
+- Sanitise HTML with `sanitize-html`.
 
 ## 3. App (`app/`)
 ### 3.1 Layout
 - Portrait: reader full-bleed; REPL as a bottom sheet with three snap points (peek 56px, half,
   full). Landscape/tablet: split view.
-- Reader: sticky breadcrumb, footnotes as bottom sheets, code blocks with `Run` and `→ scratch`.
+- Reader: sticky running head, footnotes as bottom sheets, code blocks with `Run` and `→ scratch`.
+- Visual identity follows the book: Libertine text on near-white stock, Biolinum for headings and
+  labels, maroon cross-references, periwinkle numbering, chapter openers with the drop cap and
+  small-caps first line, listings in the edition's own prettify colours. The REPL is deliberately
+  *not* paper — a slate bench under the page, one status line at rest.
 - Each `Run` evaluates in the session and shows result inline under the block.
 ### 3.2 Editor
 - Plain textarea under the hood (`autocorrect=off autocapitalize=off spellcheck=false`),

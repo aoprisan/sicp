@@ -11,7 +11,11 @@ export class Reader {
     const chunk = await res.json();
     this.crumb.textContent = chunk.breadcrumb.join(" › ");
     this.root.innerHTML = chunk.html; // sanitised at build time
-    this.root.querySelectorAll("pre").forEach((pre) => {
+    // Figures keep their path relative to book/ so the same chunks work at / and at /sicp/.
+    this.root.querySelectorAll<HTMLImageElement>("img[data-src]").forEach((img) => {
+      img.src = `${base}book/${img.dataset.src}`;
+    });
+    this.root.querySelectorAll("pre.lisp").forEach((pre) => {
       const src = pre.textContent ?? "";
       const run = document.createElement("button");
       run.className = "run"; run.textContent = "Run";
