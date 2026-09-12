@@ -25,6 +25,19 @@
   --bench-rule: #464c50;
   --bench-key: #8a8ac0;
   --bench-warn: #d98b76;
+  /* Scheme on the bench. One palette for both themes — the REPL is slate either way — and one
+     palette for both surfaces: what the editor paints under your caret is what the transcript
+     prints back. Parens cycle through three hues by depth; the pair around the cursor lights. */
+  --s-kwd: #7fa8d8;
+  --s-num: #86bd78;
+  --s-str: #c58ac5;
+  --s-com: #b08c62;
+  --s-pun: #c2c27a;
+  --s-obj: #9aa0a4;
+  --s-bad: #e08a72;
+  --s-par0: #8a8ac0;
+  --s-par1: #6fb3a5;
+  --s-par2: #c99a6a;
   /* Listings — the prettify colours from the book's own stylesheet */
   --tok-plain: #606060;
   --tok-paren: #989898;
@@ -347,15 +360,50 @@ body { margin: 0; min-height: 100dvh; background: var(--paper); }
 #output .echo { color: var(--bench-soft); }             /* what was sent */
 #output .value { color: var(--bench-key); }             /* ;Value: … */
 #output .err { color: var(--bench-warn); }
+/* Two layers in one box: the coloured copy is painted in a <pre>, the textarea sits on top with
+   its own glyphs made invisible and lends the platform's caret, selection and keyboard. They must
+   wrap identically to the pixel, so every metric that moves a glyph is set on both at once. */
 #editor-host { position: relative; }
-#editor-host textarea {
-  width: 100%; min-height: 96px; padding: 8px 14px; resize: none; outline: none;
-  border: 0; border-top: 1px solid var(--bench-rule);
-  background: var(--bench-raise); color: var(--bench-ink);
+#editor-host .paint, #editor-host textarea {
+  margin: 0; padding: 8px 14px; border: 0; border-top: 1px solid transparent;
   font-family: var(--mono); font-size: 0.9rem; line-height: 1.45;
-  caret-color: var(--bench-key);
+  white-space: pre-wrap; overflow-wrap: break-word; tab-size: 2;
 }
-#editor-host textarea::placeholder { color: var(--bench-soft); opacity: 0.7; }
+#editor-host .paint {
+  position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+  background: var(--bench-raise); color: var(--bench-ink);
+  border-top-color: var(--bench-rule);
+}
+#editor-host textarea {
+  /* block, not the default inline-block: an inline box leaves a descender gap under the
+     textarea, and the painted layer stretched to the host would be that much taller. */
+  display: block; position: relative; width: 100%; min-height: 96px; resize: none; outline: none;
+  background: transparent; caret-color: var(--bench-key);
+  /* Transparent text, not hidden text: the caret, the selection and screen readers still have
+     the real thing, and the colour comes from the layer showing through. */
+  color: transparent; -webkit-text-fill-color: transparent;
+}
+#editor-host textarea::placeholder {
+  color: var(--bench-soft); -webkit-text-fill-color: var(--bench-soft); opacity: 0.7;
+}
+/* The selection paints in the textarea's own layer, above the colour: keep it sheer. */
+#editor-host textarea::selection { background: color-mix(in srgb, var(--bench-key) 34%, transparent); }
+
+/* ── Scheme, coloured ─────────────────────────────────────────────────────── */
+/* Both bench surfaces: the editor's paint layer and the transcript. */
+#sheet .s-com { color: var(--s-com); font-style: italic; }
+#sheet .s-str { color: var(--s-str); }
+#sheet .s-num, #sheet .s-bool { color: var(--s-num); }
+#sheet .s-kwd { color: var(--s-kwd); }
+#sheet .s-sym { color: inherit; }
+#sheet .s-pun { color: var(--s-pun); }
+#sheet .s-obj { color: var(--s-obj); font-style: italic; }
+#sheet .s-bad { color: var(--s-bad); }
+#sheet .s-par.d0 { color: var(--s-par0); }
+#sheet .s-par.d1 { color: var(--s-par1); }
+#sheet .s-par.d2 { color: var(--s-par2); }
+/* Where you are: the pair enclosing the caret, lit rather than recoloured, so depth still reads. */
+#sheet .s-par.on { background: color-mix(in srgb, var(--bench-key) 26%, transparent); border-radius: 2px; }
 /* Two rows rather than a scroller: Run and Stop have to be reachable without swiping the pad. */
 #keyrow {
   display: flex; flex-wrap: wrap; gap: 6px;

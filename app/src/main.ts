@@ -1,5 +1,6 @@
 import { SchemeWorker } from "./worker-client";
 import { Editor } from "./editor/editor";
+import { highlight } from "./editor/highlight";
 import { KeyRow } from "./editor/keyrow";
 import { Radial } from "./editor/radial";
 import { Reader } from "./reader";
@@ -20,17 +21,30 @@ function appendOut(text: string, cls = "") {
   output.scrollTop = output.scrollHeight;
 }
 
+// What the transcript echoes and prints back is Scheme, so it is painted by the same highlighter
+// as the editor: a value reads the same on the way out as the expression did on the way in. The
+// HTML here is built from `highlight`, which escapes everything it is given — nothing else goes in.
+function appendPainted(html: string, cls: string) {
+  const el = document.createElement("div");
+  el.className = cls;
+  el.innerHTML = html;
+  output.appendChild(el);
+  output.scrollTop = output.scrollHeight;
+}
+
 async function run(src: string, echo = true): Promise<string> {
-  if (echo) appendOut("1 ]=> " + src, "echo");
+  if (echo) appendPainted('<span class="prompt">1 ]=&gt; </span>' + highlight(src), "echo");
   const r = await worker.eval(src, (out) => appendOut(out));
   if (r.status === "error") {
     appendOut(r.error!, "err");
     if (r.span) editor.markError(r.span);
     return r.error!;
   }
-  const shown = r.values.filter((v) => v !== "").map((v) => ";Value: " + v).join("\n");
-  if (shown) appendOut(shown, "value");
-  return shown;
+  const values = r.values.filter((v) => v !== "");
+  if (values.length) {
+    appendPainted(values.map((v) => '<span class="tag">;Value:</span> ' + highlight(v)).join("\n"), "value");
+  }
+  return values.map((v) => ";Value: " + v).join("\n");
 }
 
 keyrow.onRun = () => run(editor.value).then(() => editor.clearIfWanted());

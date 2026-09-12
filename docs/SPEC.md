@@ -123,6 +123,19 @@ Seed cases are in `tests/cases/`; the book pipeline can emit more (`just book` w
 ### 3.2 Editor
 - Plain textarea under the hood (`autocorrect=off autocapitalize=off spellcheck=false`),
   overlay-rendered highlighting, rainbow depth for the enclosing form.
+- Highlighting (`src/editor/highlight.ts`) is painted, never edited into the input: a `<pre>`
+  holds the coloured copy, the textarea sits on it with `color: transparent` and lends the
+  platform's caret, selection, keyboard and undo stack. Both layers carry the same font, padding
+  and wrapping so the glyphs line up; the editor syncs `scrollTop`/`scrollLeft` between them.
+- The scanner is for display only — `scheme/src/reader.rs` stays the authority on the language —
+  and must be total: half-typed input is the normal case. It marks comments, strings (including
+  unterminated ones), numbers as `parse_atom` reads them (integers, `1/3`, reals), `#t`/`#f`,
+  special forms, quotes, `#[…]` objects from the printer, and closers with nothing open. Parens
+  cycle three hues by depth, and the pair enclosing the cursor is lit.
+- The transcript paints with the same module: echoed entries and printed values, so a value reads
+  the same on the way out as the expression did on the way in. `highlight()` escapes everything it
+  emits — it is the only thing that may be assigned into `#output`'s `innerHTML`.
+- The palette is `--s-*` in `:root` and does not change with the theme: the bench is slate in both.
 - Custom key row: `( ) ' [ ] ; ← → ⏎ run kill`.
 - Auto-close `(`; Scheme-aware indentation on Enter; slurp/barf/wrap/unwrap buttons.
 - Radial selector (`src/editor/radial.ts`): long-press or thumb button opens a ring anchored in a
