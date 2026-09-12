@@ -52,7 +52,9 @@ fn with_session<R>(id: u32, f: impl FnOnce(&mut Session) -> R) -> Option<R> {
     SESSIONS.with(|s| s.borrow_mut().get_mut(id as usize).and_then(|o| o.as_mut()).map(f))
 }
 
-#[wasm_bindgen]
+// ES modules are strict mode, where `eval` is not a legal binding name, so wasm-bindgen would
+// silently rename this to `_eval`. Name it here instead of depending on that mangling.
+#[wasm_bindgen(js_name = eval_source)]
 pub fn eval(id: u32, src: &str, budget: u32) -> String {
     with_session(id, |s| {
         let st = s.eval(src, budget as u64);
