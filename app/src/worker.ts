@@ -23,7 +23,7 @@ self.onmessage = async (e: MessageEvent) => {
   if (m.type === "eval") {
     interrupted = false;
     scheme.set_runtime(performance.now() / 1000);
-    let r = JSON.parse(scheme.eval(session, m.src, BUDGET));
+    let r = JSON.parse(scheme.eval_source(session, m.src, BUDGET));
     while (r.status === "paused" && !interrupted) {
       if (r.output) post({ type: "output", id: m.id, text: r.output });
       await new Promise((res) => setTimeout(res, 0)); // let interrupt messages arrive

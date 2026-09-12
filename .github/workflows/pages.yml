@@ -24,6 +24,10 @@ jobs:
       - run: bash book/scripts/fetch.sh && node book/scripts/build_chunks.mjs
       - run: just wasm
       - run: cd app && npm ci && npm run build
+        env:
+          # Pages serves this repo from https://<owner>.github.io/<repo>/, and
+          # vite.config.ts takes its base from here.
+          VITE_BASE: /${{ github.event.repository.name }}/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: app/dist

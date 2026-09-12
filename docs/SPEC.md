@@ -59,12 +59,14 @@ from the reader (byte offsets into the buffer).
 ### 1.5 WASM API (`--features wasm`)
 ```
 new_session() -> SessionId
-eval(session, src: &str, budget: u32) -> JSON { status, output, value, error, span }
+drop_session(session)
+eval_source(session, src: &str, budget: u32) -> JSON { status, output, values, error, span }
 resume(session, budget) -> same
 interrupt(session)
 env_names(session) -> [String]         // for the "recent" radial wedge
-form_at(src, cursor) -> JSON { head, depth, span }   // for context-sensitive radial menu
+form_at_cursor(src, cursor) -> JSON { head, depth, span }   // context-sensitive radial menu
 gc_stats(session) -> { live, capacity }
+set_runtime(seconds)                   // host clock, so `(runtime)` works in the sandbox
 ```
 
 ### 1.6 Tests
