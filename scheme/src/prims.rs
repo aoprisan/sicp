@@ -215,17 +215,11 @@ pub static PRIMS: &[(&str, PrimFn)] = &[
     ("runtime", |_, _, _| Ok(Value::Real(runtime_seconds()))),
     ("display", |h, a, out, | {
         check_arity("display", a, 1)?;
-        out.push_str(&print(h, a[0]));
+        out.push_str(&crate::printer::display(h, a[0]));
         Ok(Value::Unspecified)
     }),
     ("write", |h, a, out| {
         check_arity("write", a, 1)?;
-        if let Value::Str(i) = a[0] {
-            if let Cell::Str(s) = h.get(i) {
-                out.push_str(&format!("{:?}", s));
-                return Ok(Value::Unspecified);
-            }
-        }
         out.push_str(&print(h, a[0]));
         Ok(Value::Unspecified)
     }),
@@ -234,7 +228,7 @@ pub static PRIMS: &[(&str, PrimFn)] = &[
         Ok(Value::Unspecified)
     }),
     ("error", |h, a, _| {
-        let msg = a.first().map(|v| print(h, *v)).unwrap_or_default();
+        let msg = a.first().map(|v| crate::printer::display(h, *v)).unwrap_or_default();
         let irritants = a.iter().skip(1).map(|v| print(h, *v)).collect();
         Err(SchemeError { message: msg, irritants, span: None })
     }),
@@ -255,7 +249,7 @@ pub static PRIMS: &[(&str, PrimFn)] = &[
         None => err("string->symbol: needs 1 argument"),
     }),
     ("number->string", |h, a, _| {
-        let s = print(h, a[0]);
+        let s = crate::printer::display(h, a[0]);
         Ok(Value::Str(h.alloc(Cell::Str(s))))
     }),
     ("string->number", |h, a, _| match a.first() {

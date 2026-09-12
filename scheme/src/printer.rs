@@ -1,15 +1,37 @@
 //! Prints values the way MIT Scheme does, because that is what readers compare against.
+//!
+//! Two representations, as in the report: `display` renders strings verbatim, `write` quotes and
+//! escapes them. The REPL's `;Value:` line and error messages both use `write`, which is why it
+//! is the default here (`(car "abc")` reports `The object "abc", ...`, with the quotes).
 
 use crate::heap::{Cell, Heap};
 use crate::value::Value;
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Mode {
+    /// Strings verbatim, for the `display` primitive.
+    Display,
+    /// Strings quoted and escaped, for `write`, `;Value:` lines and error messages.
+    Write,
+}
+
+/// `write` representation. This is what the REPL prints after `;Value: `.
 pub fn print(heap: &Heap, v: Value) -> String {
+    print_mode(heap, v, Mode::Write)
+}
+
+/// `display` representation.
+pub fn display(heap: &Heap, v: Value) -> String {
+    print_mode(heap, v, Mode::Display)
+}
+
+pub fn print_mode(heap: &Heap, v: Value, mode: Mode) -> String {
     let mut s = String::new();
-    write(heap, v, &mut s, 0);
+    write(heap, v, &mut s, 0, mode);
     s
 }
 
-fn write(heap: &Heap, v: Value, out: &mut String, depth: usize) {
+fn write(heap: &Heap, v: Value, out: &mut String, depth: usize, mode: Mode) {
     if depth > 10_000 {
         out.push_str("...");
         return;
@@ -33,7 +55,10 @@ fn write(heap: &Heap, v: Value, out: &mut String, depth: usize) {
         Value::Sym(i) => out.push_str(heap.sym_name(i)),
         Value::Str(i) => {
             if let Cell::Str(s) = heap.get(i) {
-                out.push_str(s);
+                match mode {
+                    Mode::Display => out.push_str(s),
+                    Mode::Write => escape_string(s, out),
+                }
             }
         }
         Value::Pair(_) => {
@@ -49,7 +74,7 @@ fn write(heap: &Heap, v: Value, out: &mut String, depth: usize) {
                         }
                         first = false;
                         if let Cell::Pair(a, d) = heap.get(i) {
-                            write(heap, *a, out, depth + 1);
+                            write(heap, *a, out, depth + 1, mode);
                             cur = *d;
                         }
                         count += 1;
@@ -61,7 +86,7 @@ fn write(heap: &Heap, v: Value, out: &mut String, depth: usize) {
                     Value::Nil => break,
                     other => {
                         out.push_str(" . ");
-                        write(heap, other, out, depth + 1);
+                        write(heap, other, out, depth + 1, mode);
                         break;
                     }
                 }
@@ -84,6 +109,22 @@ fn write(heap: &Heap, v: Value, out: &mut String, depth: usize) {
         Value::Unspecified => {}
         Value::Eof => out.push_str("#[eof]"),
     }
+}
+
+/// MIT writes `"a\"b"` for a string containing a quote; control characters use the usual escapes.
+fn escape_string(s: &str, out: &mut String) {
+    out.push('"');
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\t' => out.push_str("\\t"),
+            '\r' => out.push_str("\\r"),
+            _ => out.push(c),
+        }
+    }
+    out.push('"');
 }
 
 /// MIT prints 3.0 as `3.`, 0.5 as `.5`, -0.25 as `-.25`.

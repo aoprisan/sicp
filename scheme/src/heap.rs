@@ -154,20 +154,23 @@ impl Heap {
             }
         }
     }
-    pub fn set(&mut self, mut env: Idx, name: Idx, v: Value) -> bool {
+    /// Assign an existing binding, returning the value it previously held. MIT's `set!`
+    /// evaluates to that old value, which is what the REPL prints. `None` means unbound.
+    pub fn set(&mut self, mut env: Idx, name: Idx, v: Value) -> Option<Value> {
         loop {
             let parent = if let Cell::Env { vars, parent } = self.get_mut(env) {
-                if vars.contains_key(&name) {
-                    vars.insert(name, v);
-                    return true;
+                if let Some(slot) = vars.get_mut(&name) {
+                    let old = *slot;
+                    *slot = v;
+                    return Some(old);
                 }
                 *parent
             } else {
-                return false;
+                return None;
             };
             match parent {
                 Some(p) => env = p,
-                None => return false,
+                None => return None,
             }
         }
     }

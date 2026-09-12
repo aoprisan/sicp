@@ -146,22 +146,36 @@ impl Session {
             match res {
                 Ok(StepResult::Done(v)) => {
                     out.push_str(&self.output);
-                    let p = print(&self.heap, v);
-                    if !p.is_empty() {
-                        out.push_str(";Value: ");
-                        out.push_str(&p);
-                        out.push('\n');
+                    fresh_line(&mut out);
+                    match v {
+                        // MIT distinguishes "no useful value" from a value that prints as
+                        // nothing; `set!`, `set-car!`, `display` and `newline` all land here.
+                        Value::Unspecified => out.push_str(";Unspecified return value\n"),
+                        _ => {
+                            out.push_str(";Value: ");
+                            out.push_str(&print(&self.heap, v));
+                            out.push('\n');
+                        }
                     }
                 }
                 Ok(StepResult::OutOfBudget) => unreachable!(),
                 Err(e) => {
                     out.push_str(&self.output);
+                    fresh_line(&mut out);
                     out.push_str(&format!("{}\n", e));
                 }
             }
             self.maybe_gc_with(&unread);
         }
         out
+    }
+}
+
+/// MIT starts its `;Value:` / `;Unspecified return value` notation on a fresh line, so a form
+/// whose output left the cursor mid-line (`(display "hi")`) gets a newline first.
+fn fresh_line(out: &mut String) {
+    if !out.is_empty() && !out.ends_with('\n') {
+        out.push('\n');
     }
 }
 

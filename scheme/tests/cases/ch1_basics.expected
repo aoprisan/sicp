@@ -14,9 +14,13 @@
 ;Value: 2
 ;Value: (2 1 0)
 ;Value: x
+;Value: 10
 ;Value: 11
 ;Value: 3
 ;Value: 7
 hi
+;Unspecified return value
+
+;Unspecified return value
 ;Unbound variable: undefined-name
 ;The object (), passed as the first argument to car, is not the correct type.

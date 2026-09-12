@@ -455,11 +455,12 @@ impl Machine {
                 self.control = Control::Ret(Value::Sym(name));
             }
             Frame::Set { name, env } => {
-                if !heap.set(env, name, v) {
-                    return err(format!("Unbound variable: {}", heap.sym_name(name)));
-                }
+                let old = match heap.set(env, name, v) {
+                    Some(old) => old,
+                    None => return err(format!("Unbound variable: {}", heap.sym_name(name))),
+                };
                 self.env = env;
-                self.control = Control::Ret(Value::Unspecified);
+                self.control = Control::Ret(old);
             }
             Frame::CondK { clauses, env } => {
                 self.env = env;
