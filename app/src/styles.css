@@ -1,40 +1,342 @@
-/* Design notes: book-like reading surface (warm paper, serif), REPL in a cooler mono panel.
-   One accent (deep teal) reserved for the enclosing form and runnable code. */
+/* SICP, set the way the book is set.
+   The reading surface borrows its identity from the MIT Press pages and Andres Raba's HTML5
+   edition: Linux Libertine text on near-white stock, Linux Biolinum for anything that labels
+   rather than reads, maroon cross-references, periwinkle numerals, listings coloured by the
+   book's own prettify palette. Webfonts ship with the chunks (book/fonts, GPL-FE + OFL).
+   Under the page sits the bench: a slate REPL that never pretends to be paper. */
+
 :root {
-  --paper: #fbf8f1; --ink: #2a2521; --muted: #7a716a; --rule: #e2dbcf;
-  --panel: #f1efe9; --mono-ink: #1f2a2e; --accent: #1d6f6a; --accent-bg: #e0efee;
+  /* Paper */
+  --paper: #f8f7f4;
+  --paper-edge: #efede7;      /* figure mats, listing grounds */
+  --ink: #383838;
+  --ink-soft: #6f6a63;
+  --rule: #ddd9d1;
+  --rule-firm: #c9c3b8;
+  /* The book's two accents: maroon for references, periwinkle for numbering */
+  --maroon: #804040;
+  --peri: #8a8ac0;
+  --peri-pale: #aeaece;
+  /* Bench */
+  --bench: #2d3134;
+  --bench-raise: #383d41;
+  --bench-ink: #ddd9d1;
+  --bench-soft: #9aa0a4;
+  --bench-rule: #464c50;
+  --bench-key: #8a8ac0;
+  --bench-warn: #d98b76;
+  /* Listings — the prettify colours from the book's own stylesheet */
+  --tok-plain: #606060;
+  --tok-paren: #989898;
+  --tok-keyword: #4070a0;
+  --tok-literal: #509040;
+  --tok-string: #985098;
+  --tok-comment: #b08050;
+  --tok-punct: #909020;
+  --tok-error: #c06050;
+
+  /* the radial selector paints its SVG from these */
+  --panel: var(--paper-edge);
+  --accent: var(--peri);
+  --accent-bg: #e7e7f3;
+
   --sheet-peek: 56px;
-  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-  font-size: 17px; line-height: 1.55; color: var(--ink); background: var(--paper);
+  --text: "Linux Libertine O", "Palatino Linotype", Palatino, Georgia, serif;
+  --display: "Linux Biolinum O", "Optima", "Segoe UI", system-ui, sans-serif;
+  --mono: "Inconsolata LGC", "DejaVu Sans Mono", ui-monospace, Menlo, Consolas, monospace;
+
+  font-family: var(--text);
+  font-size: clamp(17px, 3.6vw + 4px, 20px);
+  line-height: 1.42;
+  color: var(--ink);
+  background: var(--paper);
+  /* 'liga' for the book's ligatures, 'ss06' for Libertine's alternate ampersand */
+  font-feature-settings: "liga" 1, "ss06" 1;
 }
+
+/* Night reading. Same book, one lamp — not an inversion: the stock goes to dark board,
+   the maroon lifts to a rose that still reads as the reference colour. */
 @media (prefers-color-scheme: dark) {
-  :root { --paper: #191715; --ink: #e8e2d8; --muted: #9a918a; --rule: #302b27; --panel: #221f1c; --mono-ink: #dfe6e8; --accent: #5cc4bd; --accent-bg: #163634; }
+  :root:not([data-theme="light"]) {
+    --paper: #1a1917;
+    --paper-edge: #232120;
+    --ink: #ddd7cb;
+    --ink-soft: #9c948a;
+    --rule: #34302b;
+    --rule-firm: #4a443d;
+    --maroon: #c99089;
+    --peri: #a3a3dc;
+    --peri-pale: #6e6e96;
+    --bench: #121415;
+    --bench-raise: #1e2123;
+    --bench-ink: #d5d0c6;
+    --bench-soft: #8b9195;
+    --bench-rule: #2c3032;
+    --tok-plain: #a49e94;
+    --tok-paren: #7d7870;
+    --tok-keyword: #7fa8d8;
+    --tok-literal: #86bd78;
+    --tok-string: #c58ac5;
+    --tok-comment: #c8a273;
+    --tok-punct: #bfbf6a;
+    --tok-error: #e08a72;
+    --accent-bg: #2f2f45;
+  }
 }
+:root[data-theme="dark"] {
+  --paper: #1a1917;
+  --paper-edge: #232120;
+  --ink: #ddd7cb;
+  --ink-soft: #9c948a;
+  --rule: #34302b;
+  --rule-firm: #4a443d;
+  --maroon: #c99089;
+  --peri: #a3a3dc;
+  --peri-pale: #6e6e96;
+  --bench: #121415;
+  --bench-raise: #1e2123;
+  --bench-ink: #d5d0c6;
+  --bench-soft: #8b9195;
+  --bench-rule: #2c3032;
+  --tok-plain: #a49e94;
+  --tok-paren: #7d7870;
+  --tok-keyword: #7fa8d8;
+  --tok-literal: #86bd78;
+  --tok-string: #c58ac5;
+  --tok-comment: #c8a273;
+  --tok-punct: #bfbf6a;
+  --tok-error: #e08a72;
+  --accent-bg: #2f2f45;
+}
+
 * { box-sizing: border-box; }
-body { margin: 0; min-height: 100dvh; }
-#crumb { position: sticky; top: 0; padding: 8px 16px; font-size: 13px; color: var(--muted); background: var(--paper); border-bottom: 1px solid var(--rule); z-index: 2; }
-#reader { max-width: 40rem; margin: 0 auto; padding: 16px 16px calc(var(--sheet-peek) + 32px); }
-#reader figure { margin: 20px 0; text-align: center; }
-/* SVG figures are ink on transparency: keep them on paper even in dark mode, or they vanish. */
-#reader img.fig { max-width: 100%; height: auto; background: #fbf8f1; border-radius: 6px; }
-#reader figcaption { font-size: 14px; color: var(--muted); text-align: left; }
-#reader figcaption p { margin: 6px 0 0; }
-#reader pre { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 14px; background: var(--panel); padding: 12px; border-radius: 8px; overflow-x: auto; position: relative; }
-#reader pre .run { position: absolute; right: 8px; top: 8px; font: inherit; font-size: 12px; color: var(--accent); background: var(--accent-bg); border: 0; border-radius: 6px; padding: 4px 8px; }
-#reader .result { font-family: ui-monospace, monospace; font-size: 13px; color: var(--accent); margin: -8px 0 16px 12px; white-space: pre-wrap; }
-#sheet { position: fixed; left: 0; right: 0; bottom: 0; height: var(--sheet-peek); background: var(--panel); border-top: 1px solid var(--rule); display: grid; grid-template-rows: 20px 1fr auto auto; transition: height 160ms ease-out; z-index: 3; }
-#sheet.half { height: 50dvh; } #sheet.full { height: calc(100dvh - 44px); }
-#sheet-handle { justify-self: center; width: 36px; height: 4px; margin-top: 8px; border-radius: 2px; background: var(--muted); }
-#output { overflow-y: auto; padding: 4px 12px; font-family: ui-monospace, monospace; font-size: 13px; color: var(--mono-ink); white-space: pre-wrap; }
+body { margin: 0; min-height: 100dvh; background: var(--paper); }
+:focus-visible { outline: 2px solid var(--peri); outline-offset: 2px; }
+
+/* ── Running head ─────────────────────────────────────────────────────────── */
+#crumb {
+  position: sticky; top: 0; z-index: 2;
+  padding: 9px 18px calc(9px + env(safe-area-inset-top, 0px));
+  font-family: var(--display);
+  font-size: 0.66rem; letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--ink-soft); background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ── The page ─────────────────────────────────────────────────────────────── */
+#reader {
+  max-width: 33rem; margin: 0 auto;
+  padding: 4px 18px calc(var(--sheet-peek) + 40px);
+  hyphens: auto;
+}
+#reader section { width: auto; margin: 0; }
+#reader p { margin: 0 0 0.4em; }
+#reader p + p { text-indent: 1.15em; }  /* set solid and indented, the way a book page runs */
+#reader a[href] { color: var(--maroon); text-decoration: none; }
+#reader a[href]:hover { text-decoration: underline; text-underline-offset: 2px; }
+#reader em, #reader i, #reader cite { font-style: italic; }
+#reader strong, #reader b { font-family: var(--display); font-weight: 600; }
+#reader var { font-style: italic; padding-right: 0.16ex; }
+#reader abbr { font-variant-caps: all-small-caps; letter-spacing: 0.04em; }
+#reader hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+/* MathML never breaks inside a row, so a formula set late in a line used to push the whole page
+   sideways. As an atomic inline box it wraps to the next line instead. */
+#reader math { font-family: STIXGeneral, var(--text); display: inline-block; max-width: 100%; }
+#reader math[display="block"] { display: block; overflow-x: auto; margin: 1em 0; }
+#reader math, #reader code { white-space: normal; }
+
+/* Headings. Numbering is periwinkle and set apart, as in the printed book. */
+#reader h1, #reader h2, #reader h3, #reader h4, #reader h5 {
+  font-family: var(--display); font-weight: 600; line-height: 1.15;
+  text-wrap: balance; margin: 1.8em 0 0.7em;
+}
+#reader h1.titlefont { font-size: 2.1rem; margin: 0.6em 0 0.2em; }
+#reader div.subtitle { font-family: var(--display); color: var(--ink-soft); margin-bottom: 1.6em; }
+
+#reader h2.chapter {
+  display: grid; grid-template-columns: auto 1fr; gap: 0 0.4em; align-items: center;
+  margin: 1.2em 0 1.2em; font-size: 1.75rem;
+}
+#reader .chapnum {
+  font-family: var(--display); font-weight: 400; font-size: 3.4em;
+  line-height: 0.8; color: var(--peri-pale); font-feature-settings: "lnum" 1;
+}
+#reader .chaptitle { width: auto; }
+
+#reader h3.section { font-size: 1.4rem; margin-top: 1.4em; }
+#reader .secnum {
+  display: block; color: var(--peri); font-size: 0.72em; letter-spacing: 0.02em;
+  margin-bottom: 0.12em; font-feature-settings: "lnum" 1;
+}
+#reader h4, #reader h4.subsection { font-size: 1.1rem; }
+#reader h5, #reader h5.subsubheading, #reader h5.subsubsection { font-size: 0.95rem; }
+#reader h1.node-heading { display: none; }
+
+/* Opening paragraph of a chapter or unnumbered head: small-caps first line, periwinkle initial. */
+#reader h2 ~ p:first-of-type { text-indent: 0; }
+#reader h2 ~ p:first-of-type::first-line {
+  font-variant-caps: small-caps; letter-spacing: 0.04em;
+  font-feature-settings: "onum" 1, "smcp" 1, "c2sc" 1;
+}
+#reader h2 ~ p:first-of-type::first-letter {
+  float: left; font-size: 3rem; line-height: 0.82; text-transform: uppercase;
+  color: var(--peri); margin: 0.18rem 0.06em -0.12em 0;
+}
+
+#reader blockquote {
+  margin: 2em 0.6em; font-style: italic; color: var(--ink-soft);
+}
+/* Epigraphs carry their source on a line of its own — the attribution is the p holding the cite. */
+#reader blockquote p:has(cite) {
+  margin-top: 0.7em; text-indent: 0; font-style: normal;
+  font-family: var(--display); font-size: 0.8rem; letter-spacing: 0.02em;
+}
+#reader blockquote cite { font-style: italic; }
+
+/* ── Listings ─────────────────────────────────────────────────────────────── */
+/* Printed as listings, not as UI cards: a rule in the margin, the book's token colours. */
+#reader div.lisp, #reader div.example { margin: 1.1em 0; }
+#reader pre {
+  font-family: var(--mono); font-size: 0.78rem; line-height: 1.45;
+  margin: 0; padding: 0.7em 0.9em 0.7em 1em;
+  background: var(--paper-edge); border-left: 2px solid var(--rule-firm);
+  overflow-x: auto; position: relative;
+}
+#reader pre.example { border-left-color: var(--rule); color: var(--ink-soft); }
+#reader code, #reader tt, #reader samp { font-family: var(--mono); font-size: 0.82em; }
+#reader .pln { color: var(--tok-plain); }
+#reader .opn, #reader .clo { color: var(--tok-paren); }
+#reader .kwd { color: var(--tok-keyword); }
+#reader .lit { color: var(--tok-literal); }
+#reader .str { color: var(--tok-string); }
+#reader .com { color: var(--tok-comment); font-style: italic; }
+#reader .pun { color: var(--tok-punct); }
+#reader .err { color: var(--tok-error); }
+#reader .typ, #reader .dec, #reader .var { color: var(--peri); }
+#reader .roman { font-family: var(--text); font-size: 0.96rem; }
+
+/* Run / result: marginal marks on the listing, not buttons parked on top of it. */
+#reader pre .run {
+  position: absolute; right: 0.2em; top: 0.15em;
+  font-family: var(--display); font-size: 0.62rem; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--maroon);
+  background: none; border: 0; border-bottom: 1px solid currentColor;
+  padding: 0.6em 0.7em 0.15em; margin: 0; cursor: pointer;
+}
+#reader pre .run:active { color: var(--peri); }
+#reader .result {
+  font-family: var(--mono); font-size: 0.76rem; white-space: pre-wrap;
+  color: var(--ink-soft); border-left: 2px solid var(--maroon);
+  margin: 0 0 1.1em; padding: 0.35em 0.9em;
+}
+#reader .result:empty { display: none; }
+
+/* ── Figures ──────────────────────────────────────────────────────────────── */
+#reader figure { margin: 2em 0 1.4em; text-align: center; }
+/* The SVGs are ink on transparency: keep them on stock, or they vanish after dark. */
+#reader img.fig {
+  max-width: 100%; height: auto; background: #f8f7f4;
+  padding: 0.4em; border-radius: 2px;
+}
+#reader figcaption {
+  display: table; margin: 0.9em auto 0; padding: 0 1em;
+  font-size: 0.8rem; line-height: 1.35; color: var(--ink-soft); text-align: left;
+}
+#reader figcaption p { margin: 0; text-indent: 0; }
+#reader figcaption strong { color: var(--ink); }
+/* Licence marks in running text are glyphs, not plates. */
+#reader img.icon { padding: 0; background: none; vertical-align: -0.15em; }
+
+/* ── Footnotes, contents, index ───────────────────────────────────────────── */
+#reader a.footnote_link { font-size: 0.7em; vertical-align: super; line-height: 0; }
+#reader h4.footnotes-heading {
+  margin-top: 2.4em; padding-top: 0.9em; border-top: 1px solid var(--rule);
+  font-size: 0.72rem; letter-spacing: 0.13em; text-transform: uppercase; color: var(--ink-soft);
+}
+#reader div.footnote { font-size: 0.86rem; color: var(--ink-soft); }
+#reader div.footnote p { text-indent: 0; }
+#reader ul.no-bullet { list-style: none; padding-left: 0; }
+#reader div.contents ul, #reader div.shortcontents ul { line-height: 1.9; }
+#reader table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
+#reader table.menu td, #reader table.index-cp td { vertical-align: top; padding: 0.1em 0.6em 0.1em 0; }
+
+/* ── The bench ────────────────────────────────────────────────────────────── */
+/* Slate under paper: the REPL is an instrument, and reads as one in both themes. */
+#sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 3;
+  height: var(--sheet-peek);
+  display: grid; grid-template-rows: 20px 1fr auto auto;
+  background: var(--bench); color: var(--bench-ink);
+  border-top: 1px solid var(--bench-rule);
+  box-shadow: 0 -2px 14px rgb(0 0 0 / 0.16);
+  overflow: hidden;                     /* the peek is a peek: don't leak the editor into it */
+  transition: height 160ms ease-out;
+}
+/* At rest the bench is a one-line status strip: the handle and the last thing the REPL said,
+   clamped to a single line so nothing is left sliced in half. Only while it is a bottom sheet —
+   in the landscape split below it is a full-height panel. */
+@media (max-width: 899px), (orientation: portrait) {
+  #sheet:not(.half):not(.full) { grid-template-rows: 20px 1fr; }
+  #sheet:not(.half):not(.full) #editor-host,
+  #sheet:not(.half):not(.full) #keyrow,
+  #sheet:not(.half):not(.full) #output > :not(:last-child) { display: none; }
+  #sheet:not(.half):not(.full) #output > :last-child {
+    display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+  }
+}
+#sheet.half { height: 50dvh; }
+#sheet.full { height: calc(100dvh - 44px); }
+#sheet-handle {
+  justify-self: center; width: 38px; height: 4px; margin-top: 8px;
+  border-radius: 2px; background: var(--bench-soft); cursor: pointer;
+}
+#output {
+  overflow-y: auto; padding: 6px 14px;
+  font-family: var(--mono); font-size: 0.8rem; line-height: 1.45;
+  color: var(--bench-ink); white-space: pre-wrap;
+}
+#output .echo { color: var(--bench-soft); }             /* what was sent */
+#output .value { color: var(--bench-key); }             /* ;Value: … */
+#output .err { color: var(--bench-warn); }
 #editor-host { position: relative; }
-#editor-host textarea { width: 100%; min-height: 96px; border: 0; border-top: 1px solid var(--rule); background: transparent; color: var(--mono-ink); font-family: ui-monospace, monospace; font-size: 15px; line-height: 1.45; padding: 8px 12px; resize: none; outline: none; }
-#keyrow { display: flex; gap: 6px; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); overflow-x: auto; }
-#keyrow button { flex: 0 0 auto; min-width: 40px; height: 40px; border: 0; border-radius: 8px; background: var(--paper); color: var(--ink); font-family: ui-monospace, monospace; font-size: 16px; }
-#keyrow button.primary { background: var(--accent); color: white; }
+#editor-host textarea {
+  width: 100%; min-height: 96px; padding: 8px 14px; resize: none; outline: none;
+  border: 0; border-top: 1px solid var(--bench-rule);
+  background: var(--bench-raise); color: var(--bench-ink);
+  font-family: var(--mono); font-size: 0.9rem; line-height: 1.45;
+  caret-color: var(--bench-key);
+}
+#editor-host textarea::placeholder { color: var(--bench-soft); opacity: 0.7; }
+/* Two rows rather than a scroller: Run and Stop have to be reachable without swiping the pad. */
+#keyrow {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 7px 10px calc(7px + env(safe-area-inset-bottom));
+  background: var(--bench);
+}
+#keyrow button {
+  flex: 0 1 auto; min-width: 42px; height: 42px; padding: 0 10px;
+  border: 1px solid var(--bench-rule); border-radius: 5px;
+  background: var(--bench-raise); color: var(--bench-ink);
+  font-family: var(--mono); font-size: 1rem;
+}
+#keyrow button:active { background: var(--bench-rule); }
+#keyrow button.primary {
+  flex: 1 0 auto;
+  background: var(--bench-key); border-color: var(--bench-key); color: #17181c;
+  font-family: var(--display); letter-spacing: 0.04em;
+}
 #radial { position: absolute; width: 220px; height: 220px; pointer-events: none; display: none; }
+
 @media (prefers-reduced-motion: reduce) { #sheet { transition: none; } }
+
+/* Landscape / tablet: book on the left, bench on the right. */
 @media (min-width: 900px) and (orientation: landscape) {
   body { display: grid; grid-template-columns: 1fr 1fr; }
-  #crumb { grid-column: 1; } #reader { grid-column: 1; padding-bottom: 32px; }
-  #sheet { position: sticky; top: 0; grid-column: 2; grid-row: 1 / span 2; height: 100dvh; border-top: 0; border-left: 1px solid var(--rule); }
+  #crumb { grid-column: 1; }
+  #reader { grid-column: 1; padding-bottom: 40px; }
+  #sheet, #sheet.half, #sheet.full {
+    position: sticky; top: 0; grid-column: 2; grid-row: 1 / span 2;
+    height: 100dvh; border-top: 0; border-left: 1px solid var(--bench-rule); box-shadow: none;
+  }
 }

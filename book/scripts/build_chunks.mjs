@@ -20,33 +20,84 @@ if (!existsSync(srcDir)) {
 mkdirSync(join(outDir, "chunks"), { recursive: true });
 
 const files = readdirSync(srcDir).filter((f) => f.endsWith(".xhtml") || f.endsWith(".html")).sort();
+const ids = new Map(files.map((f, i) => [f, `c${String(i).padStart(3, "0")}`]));
 const toc = [];
 const assets = new Set(); // relative paths under book/, collected while rewriting figures
 const written = new Set(); // absolute paths, so a rebuild can prune what the book no longer has
-let n = 0;
 for (const f of files) {
   const html = readFileSync(join(srcDir, f), "utf8");
-  const title = (html.match(/<title>([^<]*)<\/title>/) || [, f])[1].trim();
+  const title = (html.match(/<title>([^<]*)<\/title>/) || [, f])[1]
+    .replace(/^Structure and Interpretation of Computer Programs,\s*2e:\s*/, "").trim();
   let body = (html.match(/<body[^>]*>([\s\S]*)<\/body>/) || [, html])[1];
   // TODO(claude-code): split `body` at section/exercise boundaries; keep <a> anchors for cross-refs.
   body = stripScripts(body);
+  body = stripWebNav(body);
+  body = rewriteLinks(body);
   body = rewriteFigures(body, assets);
   const code = [...body.matchAll(/<pre class="lisp"[^>]*>([\s\S]*?)<\/pre>/g)].map((m, i) => ({
     id: `${f}#code${i}`,
     src: decodeEntities(m[1].replace(/<[^>]+>/g, "")),
   }));
-  const id = `c${String(n++).padStart(3, "0")}`;
+  const id = ids.get(f);
   toc.push({ id, title, file: f });
-  write(join(outDir, "chunks", `${id}.json`), JSON.stringify({ id, title, breadcrumb: [title], html: body, code, exercises: [] }));
+  write(join(outDir, "chunks", `${id}.json`), JSON.stringify({ id, title, breadcrumb: breadcrumbOf(body, title), html: body, code, exercises: [] }));
 }
 write(join(outDir, "toc.json"), JSON.stringify({ license: "CC BY-SA 4.0", attribution: "book/ATTRIBUTION.md", chunks: toc }, null, 1));
 copyAssets(assets);
+copyFonts();
 prune(outDir);
 console.log(`wrote ${toc.length} chunks and ${assets.size} figures to ${outDir}`);
 
 // The book text pulls jQuery + its own footnote scripts; the PWA supplies its own behaviour.
 function stripScripts(html) {
   return html.replace(/<script\b[\s\S]*?<\/script>/g, "");
+}
+
+// A running head, the way a book has one: the number and the title of the section on the page.
+function breadcrumbOf(body, title) {
+  const num = (body.match(/<span class="(?:secnum|chapnum)">([^<]*)<\/span>/) || [])[1];
+  const name = (body.match(/<span class="(?:sectitle|chaptitle)">([\s\S]*?)<\/span>/) || [])[1];
+  if (num && name) return [num.trim(), decodeEntities(name.replace(/<[^>]+>/g, "")).trim()];
+  const head = (body.match(/<h[1-5][^>]*>([\s\S]*?)<\/h[1-5]>/) || [])[1];
+  return [head ? decodeEntities(head.replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim() : title];
+}
+
+// The Texinfo nav bars ("Next: 1.3, Prev: 1.1") and the fixed jump-to-top arrows are artefacts of
+// a paginated website; the reader has its own breadcrumb and the arrows would float over the REPL.
+function stripWebNav(html) {
+  return html
+    .replace(/<nav class="header">[\s\S]*?<\/nav>/g, "")
+    .replace(/<span class="(?:top|bottom) jump"[^>]*>[\s\S]*?<\/span>/g, "")
+    .replace(/<hr\s*\/?>\s*(?=<\/section>)/g, "");
+}
+
+// Cross-references point at the source filenames ("1_002e3.xhtml#g_t1_002e3"). Point them at the
+// chunk that file became instead; in-page anchors (footnotes, figures) are left alone.
+function rewriteLinks(html) {
+  return html.replace(/href="([^"#]+\.x?html)(#[^"]*)?"/g, (m, file, frag) => {
+    const id = ids.get(file);
+    return id ? `href="#${id}"` : m;
+  });
+}
+
+// The book is set in Linux Libertine/Biolinum, Inconsolata LGC and STIX; ship those webfonts with
+// the app so the reader looks like the book offline. GPL-with-font-exception and OFL — the licence
+// files travel with them (see book/ATTRIBUTION.md).
+function copyFonts() {
+  const fontDir = join(srcDir, "css", "fonts");
+  if (!existsSync(fontDir)) { console.error("book/src/html/css/fonts missing"); process.exit(1); }
+  const outFonts = join(outDir, "fonts");
+  mkdirSync(outFonts, { recursive: true });
+  for (const name of readdirSync(fontDir)) {
+    if (!/\.(woff2?|txt)$/.test(name)) continue;
+    const to = join(outFonts, name);
+    copyFileSync(join(fontDir, name), to);
+    written.add(to);
+  }
+  // font-display:swap so the text is readable while ~600 KB of webfonts arrive on a phone.
+  const css = readFileSync(join(fontDir, "fonts.css"), "utf8")
+    .replace(/(@font-face\s*\{)/g, "$1\n  font-display: swap;");
+  write(join(outFonts, "fonts.css"), css);
 }
 
 // SICP embeds every figure as <object data="fig/…svg">. Injected into the reader those relative
@@ -59,11 +110,11 @@ function rewriteFigures(html, assets) {
     const alt = figureLabel(fig) ?? captionOf(fig);
     return fig.replace(OBJECT_RE, (m, attrs) => imgTag(attrs, alt, assets) ?? m);
   });
-  // Stray objects outside a <figure>: the licence marks on the title page.
-  return html.replace(OBJECT_RE, (m, attrs) => imgTag(attrs, null, assets) ?? m);
+  // Stray objects outside a <figure>: the licence marks on the title page, set inline with text.
+  return html.replace(OBJECT_RE, (m, attrs) => imgTag(attrs, null, assets, "fig icon") ?? m);
 }
 
-function imgTag(attrs, alt, assets) {
+function imgTag(attrs, alt, assets, cls = "fig") {
   const path = (attrs.match(/\bdata="([^"]+)"/) || [])[1];
   if (!path || /^[a-z]+:|^\/\//i.test(path)) return null; // leave absolute/remote embeds alone
   assets.add(path);
@@ -71,7 +122,7 @@ function imgTag(attrs, alt, assets) {
   // Keep the typeset width, but let CSS shrink it on a phone — hence aspect-ratio, not height.
   const style = size.length === 2 ? ` style="width:${size[0]}ex;aspect-ratio:${size[0]}/${size[1]}"` : "";
   const label = alt ?? ICON_ALT[(path.match(/([^/]+?)\.std\.svg$/) || [])[1]] ?? path.split("/").pop();
-  return `<img class="fig" data-src="${path}" alt="${escapeAttr(label)}" loading="lazy" decoding="async"${style} />`;
+  return `<img class="${cls}" data-src="${path}" alt="${escapeAttr(label)}" loading="lazy" decoding="async"${style} />`;
 }
 
 // The caption is right next to the image, so the figure's own anchor ("Figure 5.16") is the

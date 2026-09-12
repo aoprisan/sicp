@@ -15,7 +15,7 @@ export class Reader {
     this.root.querySelectorAll<HTMLImageElement>("img[data-src]").forEach((img) => {
       img.src = `${base}book/${img.dataset.src}`;
     });
-    this.root.querySelectorAll("pre").forEach((pre) => {
+    this.root.querySelectorAll("pre.lisp").forEach((pre) => {
       const src = pre.textContent ?? "";
       const run = document.createElement("button");
       run.className = "run"; run.textContent = "Run";

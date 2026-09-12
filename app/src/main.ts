@@ -21,7 +21,7 @@ function appendOut(text: string, cls = "") {
 }
 
 async function run(src: string, echo = true): Promise<string> {
-  if (echo) appendOut("1 ]=> " + src);
+  if (echo) appendOut("1 ]=> " + src, "echo");
   const r = await worker.eval(src, (out) => appendOut(out));
   if (r.status === "error") {
     appendOut(r.error!, "err");
@@ -29,7 +29,7 @@ async function run(src: string, echo = true): Promise<string> {
     return r.error!;
   }
   const shown = r.values.filter((v) => v !== "").map((v) => ";Value: " + v).join("\n");
-  if (shown) appendOut(shown);
+  if (shown) appendOut(shown, "value");
   return shown;
 }
 
@@ -56,9 +56,19 @@ document.getElementById("sheet-handle")!.addEventListener("click", () => {
   sheet.className = snaps[idx];
 });
 
+// Chunk ids are c000…; any other hash is an in-page anchor (footnote, figure) — leave it to
+// the browser to scroll to, or it would replace the page the reader is on.
+const chunkFromHash = () => {
+  const h = location.hash.slice(1);
+  return /^c\d{3}$/.test(h) ? h : null;
+};
+
 // Boot
 worker.ready.then(async () => {
   appendOut("SICP Scheme ready.");
-  await reader.load(location.hash.slice(1) || "c000");
+  await reader.load(chunkFromHash() ?? "c000");
 });
-window.addEventListener("hashchange", () => reader.load(location.hash.slice(1)));
+window.addEventListener("hashchange", () => {
+  const id = chunkFromHash();
+  if (id) reader.load(id);
+});
