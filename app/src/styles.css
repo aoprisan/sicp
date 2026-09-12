@@ -14,6 +14,11 @@
 body { margin: 0; min-height: 100dvh; }
 #crumb { position: sticky; top: 0; padding: 8px 16px; font-size: 13px; color: var(--muted); background: var(--paper); border-bottom: 1px solid var(--rule); z-index: 2; }
 #reader { max-width: 40rem; margin: 0 auto; padding: 16px 16px calc(var(--sheet-peek) + 32px); }
+#reader figure { margin: 20px 0; text-align: center; }
+/* SVG figures are ink on transparency: keep them on paper even in dark mode, or they vanish. */
+#reader img.fig { max-width: 100%; height: auto; background: #fbf8f1; border-radius: 6px; }
+#reader figcaption { font-size: 14px; color: var(--muted); text-align: left; }
+#reader figcaption p { margin: 6px 0 0; }
 #reader pre { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 14px; background: var(--panel); padding: 12px; border-radius: 8px; overflow-x: auto; position: relative; }
 #reader pre .run { position: absolute; right: 8px; top: 8px; font: inherit; font-size: 12px; color: var(--accent); background: var(--accent-bg); border: 0; border-radius: 6px; padding: 4px 8px; }
 #reader .result { font-family: ui-monospace, monospace; font-size: 13px; color: var(--accent); margin: -8px 0 16px 12px; white-space: pre-wrap; }

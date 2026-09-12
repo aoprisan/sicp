@@ -81,8 +81,13 @@ Seed cases are in `tests/cases/`; the book pipeline can emit more (`just book` w
 - `build_chunks.mjs`: parse `html/`, split by `<h3>`/exercise, emit
   `app/public/book/{toc.json, chunks/<id>.json}`. Each chunk: `{id, title, breadcrumb[], html,
   code[]: {id, src, expected?}, exercises[]: {id, html, referencedCode[]}}`.
-- Figures copied as SVG; math already rendered (MathJax → keep, or pre-render to SVG with
-  `mathjax-node` at build).
+- Figures copied as SVG into `app/public/book/fig/`. The book embeds them as
+  `<object data="fig/…svg">`; the builder rewrites each one to
+  `<img class="fig" data-src="fig/…svg" alt="Figure n.m">` and the reader sets `src` to
+  `${BASE_URL}book/<data-src>` after injecting the chunk. Chunks therefore stay base-agnostic
+  (same JSON serves `/` and `/sicp/`), and a stale relative URL can no longer fall back to
+  `index.html` and load the whole app inside a figure box. Math already rendered (MathJax → keep,
+  or pre-render to SVG with `mathjax-node` at build).
 - Sanitise HTML with `sanitize-html`; strip nav.
 
 ## 3. App (`app/`)
