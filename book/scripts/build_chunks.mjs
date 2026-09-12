@@ -13,17 +13,31 @@ const OBJECT_RE = /<object\b([^>]*)>[\s\S]*?<\/object>/g;
 
 const ICON_ALT = { cc: "Creative Commons", by: "Attribution", sa: "ShareAlike" };
 
+// Where the book actually lives. This app is two removes from it — the MIT Press text, Andres
+// Raba's HTML5 edition, then our chunks — and CC BY-SA asks that the trail stay visible, so the
+// cover names it and `toc.json` carries it for anything else that needs to cite the source.
+const SOURCE = {
+  original: { href: "https://mitpress.mit.edu/sicp", label: "mitpress.mit.edu/sicp" },
+  edition: { href: "https://sarabander.github.io/sicp", label: "sarabander.github.io/sicp" },
+  editionSource: { href: "https://github.com/sarabander/sicp", label: "github.com/sarabander/sicp" },
+  license: { href: "https://creativecommons.org/licenses/by-sa/4.0/", label: "CC BY-SA 4.0" },
+};
+
+const COVER_ID = "c000";  // the cover is chunk zero; the book's own files start at c001
+const COVER_PLATE = "fig/bookwheel.jpg";  // the engraving on this edition's cover page
+
 if (!existsSync(srcDir)) {
   console.error("book/src/html missing — run `just book` (fetch.sh) first");
   process.exit(1);
 }
 mkdirSync(join(outDir, "chunks"), { recursive: true });
 
-const files = readdirSync(srcDir).filter((f) => f.endsWith(".xhtml") || f.endsWith(".html")).sort();
-const ids = new Map(files.map((f, i) => [f, `c${String(i).padStart(3, "0")}`]));
+const files = readingOrder(readdirSync(srcDir).filter((f) => f.endsWith(".xhtml") || f.endsWith(".html")).sort());
+const ids = new Map(files.map((f, i) => [f, `c${String(i + 1).padStart(3, "0")}`]));
 const toc = [];
 const assets = new Set(); // relative paths under book/, collected while rewriting figures
 const written = new Set(); // absolute paths, so a rebuild can prune what the book no longer has
+writeCover(files[0], assets);
 for (const f of files) {
   const html = readFileSync(join(srcDir, f), "utf8");
   const title = (html.match(/<title>([^<]*)<\/title>/) || [, f])[1]
@@ -42,11 +56,61 @@ for (const f of files) {
   toc.push({ id, title, file: f });
   write(join(outDir, "chunks", `${id}.json`), JSON.stringify({ id, title, breadcrumb: breadcrumbOf(body, title), html: body, code, exercises: [] }));
 }
-write(join(outDir, "toc.json"), JSON.stringify({ license: "CC BY-SA 4.0", attribution: "book/ATTRIBUTION.md", chunks: toc }, null, 1));
+write(join(outDir, "toc.json"), JSON.stringify({ license: "CC BY-SA 4.0", attribution: "book/ATTRIBUTION.md", source: SOURCE, cover: COVER_ID, chunks: toc }, null, 1));
 copyAssets(assets);
 copyFonts();
 prune(outDir);
 console.log(`wrote ${toc.length} chunks and ${assets.size} figures to ${outDir}`);
+
+// Texinfo names its files after sections, and readdir hands them back alphabetically: the book
+// would open at 1.1 and keep its title page and table of contents filed after the back matter.
+// index.xhtml's own table of contents is the reading order — follow it, and append anything it
+// does not mention so no file is silently dropped.
+function readingOrder(files) {
+  const first = files.includes("index.xhtml") ? "index.xhtml" : files[0];
+  const body = readFileSync(join(srcDir, first), "utf8").replace(/<head>[\s\S]*?<\/head>/, "");
+  const contents = (body.match(/<div class="contents">[\s\S]*?<\/div>/) || [body])[0];
+  const seen = new Set([first]);
+  const order = [first];
+  for (const [, file] of contents.matchAll(/href="([^"#]+\.x?html)(?:#[^"]*)?"/g)) {
+    if (files.includes(file) && !seen.has(file)) { seen.add(file); order.push(file); }
+  }
+  return [...order, ...files.filter((f) => !seen.has(f))];
+}
+
+// A book opens on its cover. Emitted as chunk zero, ahead of the book's own files: the title page
+// as this edition sets it, the bookwheel from its cover plate, and — because the reader is an
+// adaptation several removes from the text — where the original is published.
+function writeCover(firstFile, assets) {
+  assets.add(COVER_PLATE);
+  const title = "Structure and Interpretation of Computer Programs";
+  const html = `<section class="cover">
+<p class="cover-edition">Second Edition</p>
+<h1 class="cover-title">Structure and Interpretation<br />of Computer Programs</h1>
+<p class="cover-byline">Harold Abelson and Gerald Jay Sussman<br />with Julie Sussman<br />
+<span class="cover-foreword">foreword by Alan J. Perlis</span></p>
+<img class="cover-plate" data-src="${COVER_PLATE}" width="897" height="1302" decoding="async"
+ alt="Agostino Ramelli&#39;s bookwheel of 1588: a reader at a turning wheel of open books" />
+<p class="cover-enter"><a href="#${ids.get(firstFile)}">Open the book &#8250;</a></p>
+<div class="cover-colophon">
+<p>&#169;&#8201;1996 Massachusetts Institute of Technology, published by The <abbr>MIT</abbr> Press
+and licensed ${ext(SOURCE.license)}.</p>
+<p>The original is at ${ext(SOURCE.original)}. This reader is built from the
+<abbr>HTML5</abbr> edition prepared by Andres Raba, ${ext(SOURCE.edition)}
+(${ext(SOURCE.editionSource, "source")}); the text and everything adapted from it here stays under
+the same licence.</p>
+<p>Cover plate: Agostino Ramelli&#8217;s bookwheel, 1588.</p>
+</div>
+</section>`;
+  toc.push({ id: COVER_ID, title: "Cover", file: null });
+  write(join(outDir, "chunks", `${COVER_ID}.json`),
+    JSON.stringify({ id: COVER_ID, title, breadcrumb: ["SICP", "Second Edition"], html, code: [], exercises: [] }));
+}
+
+// Links off the cover leave the app; a PWA that navigates away in place cannot be navigated back.
+function ext({ href, label }, text = label) {
+  return `<a href="${href}" target="_blank" rel="noreferrer">${text}</a>`;
+}
 
 // The book text pulls jQuery + its own footnote scripts; the PWA supplies its own behaviour.
 function stripScripts(html) {
@@ -74,10 +138,14 @@ function stripWebNav(html) {
 // Cross-references point at the source filenames ("1_002e3.xhtml#g_t1_002e3"). Point them at the
 // chunk that file became instead; in-page anchors (footnotes, figures) are left alone.
 function rewriteLinks(html) {
-  return html.replace(/href="([^"#]+\.x?html)(#[^"]*)?"/g, (m, file, frag) => {
+  html = html.replace(/href="([^"#]+\.x?html)(#[^"]*)?"/g, (m, file, frag) => {
     const id = ids.get(file);
     return id ? `href="#${id}"` : m;
   });
+  // The handful of links that leave the book — the title page's reference to the original at
+  // mitpress.mit.edu, the colophon's credits — open in a new tab like the cover's do: followed in
+  // place they replace the app, and an installed PWA has no back button to return with.
+  return html.replace(/<a\b([^>]*\bhref="https?:[^"]*"[^>]*)>/g, '<a$1 target="_blank" rel="noreferrer">');
 }
 
 // The book is set in Linux Libertine/Biolinum, Inconsolata LGC and STIX; ship those webfonts with
