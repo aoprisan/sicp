@@ -1,0 +1,39 @@
+;Value: make-account
+;Value: acc
+;Value: 50
+;Value: "Insufficient funds"
+;Value: 90
+;Value: 30
+;Value: front-ptr
+;Value: rear-ptr
+;Value: set-front-ptr!
+;Value: set-rear-ptr!
+;Value: empty-queue?
+;Value: make-queue
+;Value: insert-queue!
+;Value: delete-queue!
+;Value: q1
+;Value: (a)
+;Value: (a b)
+;Value: (b)
+;Value: make-table
+;Value: lookup
+;Value: insert!
+;Value: t
+;Value: ok
+;Value: ok
+;Value: 2
+;Value: #f
+;Value: integers-starting-from
+;Value: stream-filter
+;Value: divisible?
+;Value: sieve
+;Value: primes
+;Value: (2 3 5 7 11 13 17 19 23 29 31 37 41 43 47)
+;Value: 233
+;Value: stream-map2
+;Value: add-streams
+;Value: fibs
+;Value: (0 1 1 2 3 5 8 13 21 34 55 89)
+;Value: doubles
+;Value: (1 2 4 8 16 32 64 128 256 512)

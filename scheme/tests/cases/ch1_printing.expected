@@ -1,0 +1,23 @@
+;Value: "hi"
+;Value: (1 "two" three)
+;Value: ("a" . "b")
+"a\"b"
+;Unspecified return value
+
+;Unspecified return value
+a"b
+;Unspecified return value
+
+;Unspecified return value
+("x" ("y"))
+;Unspecified return value
+
+;Unspecified return value
+(x (y))
+;Unspecified return value
+
+;Unspecified return value
+;Value: "xy"
+;Value: "42"
+;Value: "abc"
+;Unspecified return value

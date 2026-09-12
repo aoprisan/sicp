@@ -1,0 +1,7 @@
+target/
+node_modules/
+app/dist/
+app/src/wasm/
+app/public/book/
+book/src/
+.DS_Store
