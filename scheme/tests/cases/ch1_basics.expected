@@ -1,0 +1,22 @@
+;Value: sq
+;Value: 441
+;Value: fact
+;Value: 2432902008176640000
+;Value: 265252859812191058636308480000000
+;Value: 1/3
+;Value: 3/2
+;Value: .3333333333333333
+;Value: 1.5
+;Value: 4
+;Value: 1.4142135623730951
+;Value: b
+;Value: 3
+;Value: 2
+;Value: (2 1 0)
+;Value: x
+;Value: 11
+;Value: 3
+;Value: 7
+hi
+;Unbound variable: undefined-name
+;The object (), passed as the first argument to car, is not the correct type.

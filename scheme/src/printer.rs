@@ -1,0 +1,108 @@
+//! Prints values the way MIT Scheme does, because that is what readers compare against.
+
+use crate::heap::{Cell, Heap};
+use crate::value::Value;
+
+pub fn print(heap: &Heap, v: Value) -> String {
+    let mut s = String::new();
+    write(heap, v, &mut s, 0);
+    s
+}
+
+fn write(heap: &Heap, v: Value, out: &mut String, depth: usize) {
+    if depth > 10_000 {
+        out.push_str("...");
+        return;
+    }
+    match v {
+        Value::Nil => out.push_str("()"),
+        Value::Bool(true) => out.push_str("#t"),
+        Value::Bool(false) => out.push_str("#f"),
+        Value::Int(i) => out.push_str(&i.to_string()),
+        Value::Big(i) => {
+            if let Cell::Big(b) = heap.get(i) {
+                out.push_str(&b.to_string());
+            }
+        }
+        Value::Rat(i) => {
+            if let Cell::Rat(r) = heap.get(i) {
+                out.push_str(&format!("{}/{}", r.numer(), r.denom()));
+            }
+        }
+        Value::Real(f) => out.push_str(&format_real(f)),
+        Value::Sym(i) => out.push_str(heap.sym_name(i)),
+        Value::Str(i) => {
+            if let Cell::Str(s) = heap.get(i) {
+                out.push_str(s);
+            }
+        }
+        Value::Pair(_) => {
+            out.push('(');
+            let mut cur = v;
+            let mut first = true;
+            let mut count = 0;
+            loop {
+                match cur {
+                    Value::Pair(i) => {
+                        if !first {
+                            out.push(' ');
+                        }
+                        first = false;
+                        if let Cell::Pair(a, d) = heap.get(i) {
+                            write(heap, *a, out, depth + 1);
+                            cur = *d;
+                        }
+                        count += 1;
+                        if count > 100_000 {
+                            out.push_str(" ...");
+                            break;
+                        }
+                    }
+                    Value::Nil => break,
+                    other => {
+                        out.push_str(" . ");
+                        write(heap, other, out, depth + 1);
+                        break;
+                    }
+                }
+            }
+            out.push(')');
+        }
+        Value::Closure(i) => {
+            if let Cell::Closure { name, .. } = heap.get(i) {
+                match name {
+                    Some(n) => out.push_str(&format!("#[compound-procedure {} {}]", i, heap.sym_name(*n))),
+                    None => out.push_str(&format!("#[compound-procedure {}]", i)),
+                }
+            }
+        }
+        Value::Prim(p) => out.push_str(&format!("#[compiled-procedure {} {}]", p, crate::prims::prim_name(p))),
+        Value::Promise(i) => out.push_str(&format!("#[promise {}]", i)),
+        Value::Env(i) => out.push_str(&format!("#[environment {}]", i)),
+        Value::Cont(i) => out.push_str(&format!("#[continuation {}]", i)),
+        Value::Picture(i) => out.push_str(&format!("#[picture {}]", i)),
+        Value::Unspecified => {}
+        Value::Eof => out.push_str("#[eof]"),
+    }
+}
+
+/// MIT prints 3.0 as `3.`, 0.5 as `.5`, -0.25 as `-.25`.
+pub fn format_real(f: f64) -> String {
+    if f.is_nan() {
+        return "+nan.0".into();
+    }
+    if f.is_infinite() {
+        return if f > 0.0 { "+inf.0".into() } else { "-inf.0".into() };
+    }
+    if f == f.trunc() && f.abs() < 1e21 {
+        return format!("{}.", f as i128);
+    }
+    let s = format!("{}", f);
+    if let Some(rest) = s.strip_prefix("0.") {
+        return format!(".{}", rest);
+    }
+    if let Some(rest) = s.strip_prefix("-0.") {
+        return format!("-.{}", rest);
+    }
+    s
+}
