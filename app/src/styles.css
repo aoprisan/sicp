@@ -25,6 +25,19 @@
   --bench-rule: #464c50;
   --bench-key: #8a8ac0;
   --bench-warn: #d98b76;
+  /* Scheme on the bench. One palette for both themes — the REPL is slate either way — and one
+     palette for both surfaces: what the editor paints under your caret is what the transcript
+     prints back. Parens cycle through three hues by depth; the pair around the cursor lights. */
+  --s-kwd: #7fa8d8;
+  --s-num: #86bd78;
+  --s-str: #c58ac5;
+  --s-com: #b08c62;
+  --s-pun: #c2c27a;
+  --s-obj: #9aa0a4;
+  --s-bad: #e08a72;
+  --s-par0: #8a8ac0;
+  --s-par1: #6fb3a5;
+  --s-par2: #c99a6a;
   /* Listings — the prettify colours from the book's own stylesheet */
   --tok-plain: #606060;
   --tok-paren: #989898;
@@ -114,14 +127,76 @@ body { margin: 0; min-height: 100dvh; background: var(--paper); }
 :focus-visible { outline: 2px solid var(--peri); outline-offset: 2px; }
 
 /* ── Running head ─────────────────────────────────────────────────────────── */
+/* The only chrome the reader has: where you are, and the way to everywhere else. The safe-area
+   inset goes on top — with viewport-fit=cover the notch is above the header, not below it. */
 #crumb {
   position: sticky; top: 0; z-index: 2;
-  padding: 9px 18px calc(9px + env(safe-area-inset-top, 0px));
+  display: flex; align-items: center; gap: 8px;
+  padding: env(safe-area-inset-top, 0px) 18px 0;
   font-family: var(--display);
   font-size: 0.66rem; letter-spacing: 0.13em; text-transform: uppercase;
   color: var(--ink-soft); background: var(--paper);
   border-bottom: 1px solid var(--rule);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#crumb-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Three rules, drawn rather than set: the display face has no glyph for this that matches. */
+#contents-open {
+  flex: none; display: grid; place-items: center;
+  width: 40px; height: 40px; margin-left: -11px;
+  padding: 0; border: 0; background: none; color: var(--ink-soft); cursor: pointer;
+}
+#contents-open svg { width: 17px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
+#contents-open:active { color: var(--maroon); }
+
+/* ── Contents ─────────────────────────────────────────────────────────────── */
+/* A drawer, not a page: the book is long, and losing your place to look something up is the
+   thing a printed table of contents never does to you. Entries are links, so the back button
+   and a bookmarked chapter both keep working. */
+/* Visibility flips at once on the way in — a panel that is still `hidden` cannot take focus, and
+   the menu opens on the entry you are reading — and only after the slide on the way out. */
+#veil {
+  position: fixed; inset: 0; z-index: 4; background: rgb(20 18 16 / 0.42);
+  opacity: 0; visibility: hidden;
+  transition: opacity 180ms ease-out, visibility 0s linear 180ms;
+}
+#contents {
+  position: fixed; z-index: 5; inset: 0 auto 0 0; width: min(84vw, 20rem);
+  overflow-y: auto; overscroll-behavior: contain;
+  background: var(--paper); border-right: 1px solid var(--rule-firm);
+  box-shadow: 2px 0 16px rgb(0 0 0 / 0.16);
+  padding: env(safe-area-inset-top, 0px) 0 calc(14px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-101%); visibility: hidden;
+  transition: transform 190ms ease-out, visibility 0s linear 190ms;
+}
+body.nav-open #veil { opacity: 1; visibility: visible; transition: opacity 180ms ease-out, visibility 0s; }
+body.nav-open #contents { transform: none; visibility: visible; transition: transform 190ms ease-out, visibility 0s; }
+#contents .toc-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.7rem 0.6rem 0.7rem 1.15rem;
+  font-family: var(--display); font-size: 0.66rem; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--ink-soft);
+  border-bottom: 1px solid var(--rule);
+}
+#contents .toc-close {
+  width: 40px; height: 40px; padding: 0; border: 0; background: none; cursor: pointer;
+  font-family: var(--display); font-size: 1.5rem; line-height: 1; color: var(--ink-soft);
+}
+#contents .toc-close:active { color: var(--maroon); }
+#contents .toc { list-style: none; margin: 0; padding: 0.4rem 0 0; }
+#contents .toc a {
+  display: flex; gap: 0.5em; align-items: baseline;
+  min-height: 44px; padding: 0.55rem 1.15rem; box-sizing: border-box;
+  font-family: var(--display); font-size: 0.87rem; line-height: 1.3;
+  color: var(--ink); text-decoration: none;
+}
+#contents .toc .l1 a { padding-left: 2.3rem; font-size: 0.8rem; color: var(--ink-soft); }
+#contents .toc .num { flex: none; color: var(--peri); font-feature-settings: "lnum" 1; }
+#contents .toc a.on, #contents .toc a.on .num { color: var(--maroon); }
+#contents .toc a.on { background: var(--paper-edge); }
+#contents .toc a:focus-visible { outline-offset: -3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  #contents, #veil { transition: none; }
 }
 
 /* ── The page ─────────────────────────────────────────────────────────────── */
@@ -232,6 +307,54 @@ body { margin: 0; min-height: 100dvh; background: var(--paper); }
 }
 #reader .result:empty { display: none; }
 
+/* ── Cover ────────────────────────────────────────────────────────────────── */
+/* Chunk zero. A book hands you its title, its authors and its provenance before its first
+   sentence; opening straight onto §1.1 skips all three. Set centred and quiet — the plate is
+   the only loud thing on the page — with the colophon in the small type a title page uses. */
+#reader .cover { text-align: center; margin: 0 0 2.4rem; }
+#reader .cover p { text-indent: 0; }
+#reader .cover-edition {
+  font-family: var(--display); font-size: 0.68rem; letter-spacing: 0.22em;
+  text-transform: uppercase; color: var(--peri); margin: 0.9rem 0 1rem;
+}
+#reader h1.cover-title {
+  font-family: var(--text); font-weight: 400; font-size: clamp(1.8rem, 8.6vw, 2.5rem);
+  line-height: 1.06; margin: 0; text-wrap: balance;
+}
+#reader .cover-byline {
+  font-family: var(--display); font-size: 0.92rem; line-height: 1.5;
+  margin: 1.3rem 0 0; padding-top: 1.3rem; border-top: 1px solid var(--rule);
+}
+#reader .cover-foreword { color: var(--ink-soft); font-size: 0.84em; }
+/* The engraving is ink on paper stock and stays there after dark, like the figures; one lamp
+   lowered over it rather than an inversion. */
+#reader img.cover-plate {
+  display: block; width: auto; height: auto; margin: 1.2rem auto;
+  /* A cover is one view: bound the plate by the screen's height, not only its width, so title,
+     engraving and the way in still land together on a 360×640 phone. */
+  max-width: min(100%, 20rem); max-height: 40dvh;
+  background: #f8f7f4; padding: 0.5rem; border: 1px solid var(--rule-firm); border-radius: 2px;
+}
+#reader .cover-enter {
+  font-family: var(--display); font-size: 0.78rem; letter-spacing: 0.14em;
+  text-transform: uppercase; margin: 0 0 2.2rem;
+}
+#reader .cover-enter a[href] { border-bottom: 1px solid currentColor; padding-bottom: 0.25em; }
+#reader .cover-enter a[href]:hover { text-decoration: none; }
+/* Provenance: this text is three hands removed from the book, and the licence asks that the
+   trail stay on the page rather than in a repository file nobody opens. */
+#reader .cover-colophon {
+  text-align: left; font-size: 0.78rem; line-height: 1.45; color: var(--ink-soft);
+  padding-top: 1.1rem; border-top: 1px solid var(--rule);
+}
+#reader .cover-colophon p { margin: 0 0 0.55em; }
+#reader .cover-colophon a[href] { text-decoration: underline; text-underline-offset: 2px; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) #reader img.cover-plate { filter: brightness(0.86) contrast(1.03); }
+}
+:root[data-theme="dark"] #reader img.cover-plate { filter: brightness(0.86) contrast(1.03); }
+
 /* ── Figures ──────────────────────────────────────────────────────────────── */
 #reader figure { margin: 2em 0 1.4em; text-align: center; }
 /* The SVGs are ink on transparency: keep them on stock, or they vanish after dark. */
@@ -247,6 +370,17 @@ body { margin: 0; min-height: 100dvh; background: var(--paper); }
 #reader figcaption strong { color: var(--ink); }
 /* Licence marks in running text are glyphs, not plates. */
 #reader img.icon { padding: 0; background: none; vertical-align: -0.15em; }
+
+/* ── Page turn ────────────────────────────────────────────────────────────── */
+/* What a book says at the foot of a section: what came before, what comes next. */
+#reader nav.turn {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem 1.2rem;
+  margin-top: 2.8em; padding-top: 1rem; border-top: 1px solid var(--rule);
+  font-family: var(--display); font-size: 0.82rem; line-height: 1.35;
+}
+#reader nav.turn a[href] { color: var(--maroon); text-decoration: none; text-wrap: balance; }
+#reader nav.turn .prev { grid-column: 1; }
+#reader nav.turn .next { grid-column: 2; text-align: right; }
 
 /* ── Footnotes, contents, index ───────────────────────────────────────────── */
 #reader a.footnote_link { font-size: 0.7em; vertical-align: super; line-height: 0; }
@@ -299,15 +433,50 @@ body { margin: 0; min-height: 100dvh; background: var(--paper); }
 #output .echo { color: var(--bench-soft); }             /* what was sent */
 #output .value { color: var(--bench-key); }             /* ;Value: … */
 #output .err { color: var(--bench-warn); }
+/* Two layers in one box: the coloured copy is painted in a <pre>, the textarea sits on top with
+   its own glyphs made invisible and lends the platform's caret, selection and keyboard. They must
+   wrap identically to the pixel, so every metric that moves a glyph is set on both at once. */
 #editor-host { position: relative; }
-#editor-host textarea {
-  width: 100%; min-height: 96px; padding: 8px 14px; resize: none; outline: none;
-  border: 0; border-top: 1px solid var(--bench-rule);
-  background: var(--bench-raise); color: var(--bench-ink);
+#editor-host .paint, #editor-host textarea {
+  margin: 0; padding: 8px 14px; border: 0; border-top: 1px solid transparent;
   font-family: var(--mono); font-size: 0.9rem; line-height: 1.45;
-  caret-color: var(--bench-key);
+  white-space: pre-wrap; overflow-wrap: break-word; tab-size: 2;
 }
-#editor-host textarea::placeholder { color: var(--bench-soft); opacity: 0.7; }
+#editor-host .paint {
+  position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+  background: var(--bench-raise); color: var(--bench-ink);
+  border-top-color: var(--bench-rule);
+}
+#editor-host textarea {
+  /* block, not the default inline-block: an inline box leaves a descender gap under the
+     textarea, and the painted layer stretched to the host would be that much taller. */
+  display: block; position: relative; width: 100%; min-height: 96px; resize: none; outline: none;
+  background: transparent; caret-color: var(--bench-key);
+  /* Transparent text, not hidden text: the caret, the selection and screen readers still have
+     the real thing, and the colour comes from the layer showing through. */
+  color: transparent; -webkit-text-fill-color: transparent;
+}
+#editor-host textarea::placeholder {
+  color: var(--bench-soft); -webkit-text-fill-color: var(--bench-soft); opacity: 0.7;
+}
+/* The selection paints in the textarea's own layer, above the colour: keep it sheer. */
+#editor-host textarea::selection { background: color-mix(in srgb, var(--bench-key) 34%, transparent); }
+
+/* ── Scheme, coloured ─────────────────────────────────────────────────────── */
+/* Both bench surfaces: the editor's paint layer and the transcript. */
+#sheet .s-com { color: var(--s-com); font-style: italic; }
+#sheet .s-str { color: var(--s-str); }
+#sheet .s-num, #sheet .s-bool { color: var(--s-num); }
+#sheet .s-kwd { color: var(--s-kwd); }
+#sheet .s-sym { color: inherit; }
+#sheet .s-pun { color: var(--s-pun); }
+#sheet .s-obj { color: var(--s-obj); font-style: italic; }
+#sheet .s-bad { color: var(--s-bad); }
+#sheet .s-par.d0 { color: var(--s-par0); }
+#sheet .s-par.d1 { color: var(--s-par1); }
+#sheet .s-par.d2 { color: var(--s-par2); }
+/* Where you are: the pair enclosing the caret, lit rather than recoloured, so depth still reads. */
+#sheet .s-par.on { background: color-mix(in srgb, var(--bench-key) 26%, transparent); border-radius: 2px; }
 /* Two rows rather than a scroller: Run and Stop have to be reachable without swiping the pad. */
 #keyrow {
   display: flex; flex-wrap: wrap; gap: 6px;

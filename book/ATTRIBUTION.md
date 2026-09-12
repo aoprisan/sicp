@@ -5,11 +5,28 @@ Gerald Jay Sussman with Julie Sussman, © 1996 Massachusetts Institute of Techno
 by The MIT Press under the Creative Commons Attribution-ShareAlike 4.0 International License
 (https://creativecommons.org/licenses/by-sa/4.0/).
 
-This app adapts the HTML5/EPUB edition prepared by Andres Raba (https://github.com/sarabander/sicp),
-also CC BY-SA 4.0.
+## Where the text comes from
+
+| | |
+|---|---|
+| The book, published by The MIT Press | https://mitpress.mit.edu/sicp |
+| The HTML5/EPUB edition this app is built from, by Andres Raba | https://sarabander.github.io/sicp |
+| …and its source | https://github.com/sarabander/sicp |
+| The licence both carry | https://creativecommons.org/licenses/by-sa/4.0/ |
+
+Those links are not filed away in this repository only: the reader opens on a cover that names
+them, `book/scripts/build_chunks.mjs` keeps them in one `SOURCE` constant, and `just book` writes
+them into `app/public/book/toc.json` so anything else in the app can cite the source too.
 
 Changes made for this app: text re-chunked by section and exercise; navigation replaced; code
-blocks made executable; figures and math re-rendered for small screens.
+blocks made executable; figures and math re-rendered for small screens; a cover generated as the
+first chunk from the edition's own cover plate and title page.
+
+## Cover
+
+The cover plate is Agostino Ramelli's bookwheel of 1588, taken from this edition's cover page
+(`html/fig/bookwheel.jpg`). Per the edition's colophon, that scan of the engraving is hosted by
+J. E. Johnson of New Gottland (http://newgottland.com/2012/02/09/before-the-ereader-there-was-the-wheelreader/).
 
 ## Fonts
 

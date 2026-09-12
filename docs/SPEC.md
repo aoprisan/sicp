@@ -76,11 +76,28 @@ Seed cases are in `tests/cases/`; the book pipeline can emit more (`just book` w
 `book/generated-cases/`, review before promoting).
 
 ## 2. Book pipeline (`book/`)
-- Source: https://github.com/sarabander/sicp (CC BY-SA 4.0 HTML5 edition with SVG figures).
-  `fetch.sh` clones to `book/src/` (gitignored).
+- Source: https://github.com/sarabander/sicp (CC BY-SA 4.0 HTML5 edition with SVG figures),
+  the edition published at https://sarabander.github.io/sicp, itself prepared from the MIT Press
+  text at https://mitpress.mit.edu/sicp. `fetch.sh` clones to `book/src/` (gitignored).
+  Those URLs live in one `SOURCE` constant in `build_chunks.mjs` and are copied into `toc.json`,
+  so the app can name its source without hard-coding it twice.
 - `build_chunks.mjs`: parse `html/`, split by `<h3>`/exercise, emit
   `app/public/book/{toc.json, chunks/<id>.json}`. Each chunk: `{id, title, breadcrumb[], html,
   code[]: {id, src, expected?}, exercises[]: {id, html, referencedCode[]}}`.
+- `toc.json` is the book's outline, and the app's menu is built from it: each entry is
+  `{id, title, file, label, level}`. `label` is the name the book gives that part ("1.1 The
+  Elements of Programming" — better than the `<title>`, which is just "1.1"), and `level` is 0 for
+  front matter, chapters and back matter, 1 for the sections inside a chapter.
+- Chunks are numbered in the book's reading order, not in `readdir` order: Texinfo's filenames
+  sort `1_002e1.xhtml` ahead of the title page, which would open the app at §1.1. Order, labels
+  and levels all come from the table of contents in `index.xhtml`; any file it does not mention is
+  appended. Entries below section level (1.1.3 and the like) are anchors inside a file already
+  listed, so the outline stops where the chunks stop.
+- `c000` is a generated cover — title, byline, the edition's cover plate
+  (`fig/bookwheel.jpg`), a link into the title page, and the provenance CC BY-SA asks for, with
+  links out to the MIT Press text and to the edition. The book's own files start at `c001`
+  (`index.xhtml`, the title page and table of contents). External links on the cover carry
+  `target="_blank" rel="noreferrer"` — a PWA cannot navigate back after leaving in place.
 - Figures copied as SVG into `app/public/book/fig/`. The book embeds them as
   `<object data="fig/…svg">`; the builder rewrites each one to
   `<img class="fig" data-src="fig/…svg" alt="Figure n.m">` and the reader sets `src` to
@@ -101,6 +118,18 @@ Seed cases are in `tests/cases/`; the book pipeline can emit more (`just book` w
 - Portrait: reader full-bleed; REPL as a bottom sheet with three snap points (peek 56px, half,
   full). Landscape/tablet: split view.
 - Reader: sticky running head, footnotes as bottom sheets, code blocks with `Run` and `→ scratch`.
+- Navigation (`src/contents.ts`) is by hash, so every route is an ordinary link and the back
+  button and bookmarks work: the running head carries the menu button, which opens the contents as
+  a drawer over the page — the whole outline, sections indented under their chapter, the current
+  entry marked and scrolled to. It closes on Escape, on the veil, on its own × (the veil covers
+  the header, so the button that opened it cannot close it), and on picking an entry; while it is
+  open the book and the bench are `inert`. Under each chunk, page-turn links to the previous and
+  next entry in the same outline.
+- The book does not wait on the interpreter: the reader boots from `toc.json` and the worker's
+  ready line arrives when it arrives.
+- The app opens on the cover chunk (`c000`): the title page set centred over Ramelli's bookwheel,
+  sized so title, plate and the way in clear the REPL's peek strip at 360×640, with the colophon
+  and source links a scroll below.
 - Visual identity follows the book: Libertine text on near-white stock, Biolinum for headings and
   labels, maroon cross-references, periwinkle numbering, chapter openers with the drop cap and
   small-caps first line, listings in the edition's own prettify colours. The REPL is deliberately
@@ -109,6 +138,19 @@ Seed cases are in `tests/cases/`; the book pipeline can emit more (`just book` w
 ### 3.2 Editor
 - Plain textarea under the hood (`autocorrect=off autocapitalize=off spellcheck=false`),
   overlay-rendered highlighting, rainbow depth for the enclosing form.
+- Highlighting (`src/editor/highlight.ts`) is painted, never edited into the input: a `<pre>`
+  holds the coloured copy, the textarea sits on it with `color: transparent` and lends the
+  platform's caret, selection, keyboard and undo stack. Both layers carry the same font, padding
+  and wrapping so the glyphs line up; the editor syncs `scrollTop`/`scrollLeft` between them.
+- The scanner is for display only — `scheme/src/reader.rs` stays the authority on the language —
+  and must be total: half-typed input is the normal case. It marks comments, strings (including
+  unterminated ones), numbers as `parse_atom` reads them (integers, `1/3`, reals), `#t`/`#f`,
+  special forms, quotes, `#[…]` objects from the printer, and closers with nothing open. Parens
+  cycle three hues by depth, and the pair enclosing the cursor is lit.
+- The transcript paints with the same module: echoed entries and printed values, so a value reads
+  the same on the way out as the expression did on the way in. `highlight()` escapes everything it
+  emits — it is the only thing that may be assigned into `#output`'s `innerHTML`.
+- The palette is `--s-*` in `:root` and does not change with the theme: the bench is slate in both.
 - Custom key row: `( ) ' [ ] ; ← → ⏎ run kill`.
 - Auto-close `(`; Scheme-aware indentation on Enter; slurp/barf/wrap/unwrap buttons.
 - Radial selector (`src/editor/radial.ts`): long-press or thumb button opens a ring anchored in a

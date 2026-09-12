@@ -9,7 +9,15 @@
   <link rel="stylesheet" href="/src/styles.css" />
 </head>
 <body>
-  <header id="crumb"></header>
+  <header id="crumb">
+    <button id="contents-open" type="button" aria-expanded="false" aria-controls="contents"
+            aria-label="Table of contents" hidden>
+      <svg viewBox="0 0 20 14" aria-hidden="true"><path d="M0 1h20M0 7h20M0 13h20" /></svg>
+    </button>
+    <span id="crumb-text"></span>
+  </header>
+  <div id="veil"></div>
+  <nav id="contents" aria-label="Table of contents"></nav>
   <main id="reader"></main>
   <section id="sheet" aria-label="Scheme REPL">
     <div id="sheet-handle" role="button" aria-label="Expand REPL" tabindex="0"></div>
