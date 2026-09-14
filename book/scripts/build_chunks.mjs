@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const srcDir = join(here, "..", "src", "html");
 const outDir = join(here, "..", "..", "app", "public", "book");
+const caseDir = join(here, "..", "generated-cases");
 
 const OBJECT_RE = /<object\b([^>]*)>[\s\S]*?<\/object>/g;
 
@@ -37,6 +38,8 @@ const files = outline.map((e) => e.file);
 const ids = new Map(files.map((f, i) => [f, `c${String(i + 1).padStart(3, "0")}`]));
 const outlined = new Map(outline.map((e) => [e.file, e]));
 const toc = [];
+const cases = []; // draft snapshot tests recovered from the book's transcripts, for caseDir
+let listingCount = 0;
 const assets = new Set(); // relative paths under book/, collected while rewriting figures
 const written = new Set(); // absolute paths, so a rebuild can prune what the book no longer has
 writeCover(files[0], assets);
@@ -51,11 +54,10 @@ for (const f of files) {
   body = rewriteLinks(body);
   body = rewriteFigures(body, assets);
   body = wrapMath(body);
-  const code = [...body.matchAll(/<pre class="lisp"[^>]*>([\s\S]*?)<\/pre>/g)].map((m, i) => ({
-    id: `${f}#code${i}`,
-    src: decodeEntities(m[1].replace(/<[^>]+>/g, "")),
-  }));
   const id = ids.get(f);
+  const code = listingsOf(body, id);
+  cases.push(...generatedCases(code));
+  for (const c of code) delete c.lines; // the line/value pairing is scaffolding, not chunk data
   const { label, level } = outlined.get(f);
   toc.push({ id, title, file: f, label: label ?? title, level });
   write(join(outDir, "chunks", `${id}.json`), JSON.stringify({ id, title, breadcrumb: breadcrumbOf(body, title), html: body, code, exercises: [] }));
@@ -64,7 +66,191 @@ write(join(outDir, "toc.json"), JSON.stringify({ license: "CC BY-SA 4.0", attrib
 copyAssets(assets);
 copyFonts();
 prune(outDir);
+writeCases();
 console.log(`wrote ${toc.length} chunks and ${assets.size} figures to ${outDir}`);
+console.log(`${listingCount} listings; ${cases.length} draft case(s) in ${caseDir}`);
+
+// Every listing in the book, as `{id, src, expected?, template?}`.
+//
+// The class is `lisp prettyprinted`, not `lisp`: the edition runs its listings through
+// prettify.js, which appends its own class and an empty `style`. Anchoring on `"lisp"` alone
+// matched none of the book's 1098 listings, so every chunk shipped `code: []`.
+//
+// A listing is usually a transcript rather than a program — an expression, then on the next line
+// what MIT Scheme printed back — and the edition sets those printed values in italics. So the
+// markup tells us where the expression stops and the answer starts; `src` is the code, `expected`
+// is what the book shows it printing. Listings that are syntax templates rather than runnable
+// code (`(cond (⟨p₁⟩ ⟨e₁⟩) …)`) are flagged instead, since neither the Run button nor a generated
+// test case has anything to do with them.
+function listingsOf(body, chunkId) {
+  return [...body.matchAll(/<pre class="lisp[^"]*"[^>]*>([\s\S]*?)<\/pre>/g)].map((m, i) => {
+    listingCount++;
+    const lines = listingLines(m[1]);
+    const entry = {
+      id: `${chunkId}#code${i}`,
+      src: unpad(lines.filter((l) => !l.printed).map((l) => l.text)).join("\n"),
+    };
+    const expected = unpad(lines.filter((l) => l.printed).map((l) => l.text.trim()));
+    if (expected.length) entry.expected = expected.join("\n");
+    // ⟨…⟩ is the book's own placeholder notation, and the only mark it leaves in plain text.
+    if (/[⟨⟩]/.test(entry.src)) entry.template = true;
+    entry.lines = lines; // dropped before the chunk is written; generatedCases needs the pairing
+    return entry;
+  });
+}
+
+// The listing's text, line by line, with the lines the edition italicised marked `printed`. The
+// text itself is what the DOM would report as textContent — the prettifier's <span>s, the <var>s
+// and the `roman` spans it wraps prose and comments in all contribute their text and nothing else.
+// A line counts as printed only if *every* non-space character on it was italic: the ⟨⟩
+// placeholders and the italicised half-comments in chapter 5 share a line with code and are part
+// of the listing, not answers to it.
+function listingLines(frag) {
+  const out = [];
+  let depth = 0, text = "", italic = 0, plain = 0;
+  const endLine = () => { out.push({ text, printed: italic > 0 && plain === 0 }); text = ""; italic = 0; plain = 0; };
+  for (const m of frag.matchAll(/<(\/?)([A-Za-z][\w-]*)[^>]*>|([^<]+)/g)) {
+    if (m[3] === undefined) {
+      if (/^(i|em)$/i.test(m[2])) depth = Math.max(0, depth + (m[1] ? -1 : 1));
+      continue;
+    }
+    for (const ch of decodeEntities(m[3])) {
+      if (ch === "\n") { endLine(); continue; }
+      text += ch;
+      if (/\s/.test(ch)) continue;
+      if (depth > 0) italic++; else plain++;
+    }
+  }
+  endLine();
+  return out;
+}
+
+// Blank lines at either end of a listing are the <pre>'s own padding, not part of it.
+function unpad(lines) {
+  while (lines.length && !lines[0].trim()) lines.shift();
+  while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+  return lines;
+}
+
+// A listing is not yet a test case. `scheme/tests/cases` pairs a `.scm` of top-level forms with an
+// `.expected` transcript carrying one entry per form, so the book's interleaved expression/value
+// pairs have to be taken apart and lined back up — feeding a whole transcript to the evaluator
+// would have it read `486` as a second expression.
+//
+// A listing also rarely stands alone: `(sum-integers 1 10)` prints 55 only after the section has
+// defined `sum-integers`. So each case is prefixed with the definitions the section made before
+// it, in order — those are the one kind of form whose printed value is predictable without running
+// anything, since MIT Scheme answers a `define` with the name it bound.
+//
+// Only listings we can account for completely become cases: every form either has a value the book
+// prints, or is a `define`. Anything else — a listing continuing one from the page before, output
+// that is not a value (`;;; EC-Eval value:`, the register machine's `(total-pushes = …)`), a
+// query-language interaction, unbalanced parens across an answer — is left out rather than guessed
+// at. What survives is still only a draft, to be read and promoted by hand (docs/SPEC.md § 1.6):
+// the book prints `1/2` both for a value and for something `display`ed on the way to one, redefines
+// the same name as a section develops it, and shows output no evaluator can reproduce.
+function generatedCases(code) {
+  const out = [];
+  const prelude = []; // {name, src, expected} for every definition the section has made so far
+  for (const listing of code) {
+    if (listing.template) continue;
+    const forms = formsOf(listing.lines);
+    if (!forms) continue;
+    const body = listing.expected ? accountedFor(forms) : null;
+    if (body) {
+      const all = [...prelude, ...body];
+      out.push({
+        name: listing.id.replace(/#/g, "_"),
+        scm: all.map((f) => f.src).join("\n") + "\n",
+        expected: all.map((f) => f.expected).join("\n") + "\n",
+      });
+    }
+    for (const form of forms) {
+      const name = definedName(form.src);
+      if (!name) continue;
+      // A section develops a procedure in passes — three `sqrt-iter`s, two `factorial`s. Only the
+      // last one is in force by the time the transcript runs, so a rebinding replaces its
+      // predecessor rather than stacking on top of it.
+      const at = prelude.findIndex((p) => p.name === name);
+      if (at >= 0) prelude.splice(at, 1);
+      prelude.push({ name, src: form.src, expected: `;Value: ${name}` });
+    }
+  }
+  return out;
+}
+
+// Split a listing into top-level forms, each carrying the values the book printed after it.
+// `null` if the listing cannot be read that way: an answer landing mid-form, or before any form,
+// means the <pre> continues a listing from the page before and we have no expression to attach it
+// to. A `;`-led answer is a banner (`;;; EC-Eval input:`), not something an evaluator prints back.
+function formsOf(lines) {
+  const forms = [];
+  let depth = 0, inString = false, buf = [];
+  for (const { text, printed } of lines) {
+    if (printed) {
+      if (depth !== 0 || inString || !forms.length || text.trim().startsWith(";")) return null;
+      forms[forms.length - 1].values.push(text.trim());
+      continue;
+    }
+    [depth, inString] = scan(text, depth, inString);
+    buf.push(text);
+    if (depth === 0 && !inString && buf.join("").trim()) { forms.push({ src: unpad(buf).join("\n"), values: [] }); buf = []; }
+  }
+  if (depth !== 0 || inString || buf.join("").trim()) return null;
+  return forms;
+}
+
+// Give every form the transcript line it should produce, or `null` for the whole listing if any
+// form's value is neither printed by the book nor implied by a `define`.
+function accountedFor(forms) {
+  const out = [];
+  for (const { src, values } of forms) {
+    if (values.length > 1) return null; // one form, several answers: not a shape we can line up
+    const name = values.length ? null : definedName(src);
+    if (!values.length && !name) return null;
+    out.push({ src, expected: `;Value: ${values.length ? values[0] : name}` });
+  }
+  return out;
+}
+
+// `(define (fib n) …)` and `(define pi 3.14)` both print the name back; nothing else about a
+// form's value is predictable without running it, which is the evaluator's job, not the pipeline's.
+function definedName(src) {
+  const m = src.match(/^\(define\s+\(?\s*([^\s()"';]+)/);
+  return m ? m[1] : null;
+}
+
+// Paren depth across a line, skipping what does not nest: `;` comments, string contents, and the
+// parens of a character literal (`#\(`). Strings can run past the end of a line, so that carries.
+function scan(line, depth, inString) {
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inString) {
+      if (c === "\\") i++;
+      else if (c === '"') inString = false;
+      continue;
+    }
+    if (c === ";") break;
+    if (c === '"') inString = true;
+    else if (c === "#" && line[i + 1] === "\\") i += 2;
+    else if (c === "(" || c === "[") depth++;
+    else if (c === ")" || c === "]") depth--;
+  }
+  return [depth, inString];
+}
+
+// Drafts, not tests: `just test` reads `scheme/tests/cases`, and a case only moves there once a
+// human has checked it against MIT Scheme. Gitignored, like everything else derived from the book
+// text — and, like it, CC BY-SA 4.0 (book/ATTRIBUTION.md).
+function writeCases() {
+  rmSync(caseDir, { recursive: true, force: true });
+  if (!cases.length) return;
+  mkdirSync(caseDir, { recursive: true });
+  for (const c of cases) {
+    writeFileSync(join(caseDir, `${c.name}.scm`), c.scm);
+    writeFileSync(join(caseDir, `${c.name}.expected`), c.expected);
+  }
+}
 
 // Texinfo names its files after sections, and readdir hands them back alphabetically: the book
 // would open at 1.1 and keep its title page and table of contents filed after the back matter.

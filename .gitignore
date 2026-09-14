@@ -5,3 +5,4 @@ app/src/wasm/
 app/public/book/
 book/src/
 .DS_Store
+book/generated-cases/
