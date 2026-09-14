@@ -1,5 +1,6 @@
 /// Loads book chunks and wires Run / → scratch chips onto every code block.
 import type { Entry } from "./contents";
+import { rainbow } from "./rainbow";
 
 export class Reader {
   onRun: (src: string, resultEl: HTMLElement) => void = () => {};
@@ -30,6 +31,9 @@ export class Reader {
     });
     this.root.querySelectorAll("pre.lisp").forEach((pre) => {
       const src = pre.textContent ?? "";
+      // Depth-colour the parens before anything is appended to the listing, so the pass sees the
+      // edition's own markup and nothing of ours.
+      rainbow(pre);
       const run = document.createElement("button");
       run.className = "run"; run.textContent = "Run";
       const result = document.createElement("div"); result.className = "result";

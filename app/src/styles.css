@@ -47,6 +47,16 @@
   --tok-comment: #b08050;
   --tok-punct: #909020;
   --tok-error: #c06050;
+  /* Listing parens, cycled by depth: the same three families the bench cycles through —
+     periwinkle, teal, ochre — pitched for paper. Matching the weight of the grey they replace
+     put all three at about 2.6:1 on the listing ground, which is the edition's own choice for a
+     paren but too faint on a phone to tell three hues apart, so they are set at the weight of
+     the book's own literal green (3.3:1) and, unlike the first attempt, at the same weight as
+     each other. Still recessive against plain code (5.4:1) and keywords (4.4:1): structural
+     punctuation, readable, not loud. After dark both surfaces land on the same three. */
+  --tok-par0: #7c7cb8;
+  --tok-par1: #4b8d7f;
+  --tok-par2: #ad763f;
 
   /* the radial selector paints its SVG from these */
   --panel: var(--paper-edge);
@@ -93,6 +103,9 @@
     --tok-comment: #c8a273;
     --tok-punct: #bfbf6a;
     --tok-error: #e08a72;
+    --tok-par0: #8a8ac0;
+    --tok-par1: #6fb3a5;
+    --tok-par2: #c99a6a;
     --accent-bg: #2f2f45;
   }
 }
@@ -119,6 +132,9 @@
   --tok-comment: #c8a273;
   --tok-punct: #bfbf6a;
   --tok-error: #e08a72;
+  --tok-par0: #8a8ac0;
+  --tok-par1: #6fb3a5;
+  --tok-par2: #c99a6a;
   --accent-bg: #2f2f45;
 }
 
@@ -293,6 +309,13 @@ body.nav-open #contents { transform: none; visibility: visible; transition: tran
 #reader code, #reader tt, #reader samp { font-family: var(--mono); font-size: 0.82em; }
 #reader .pln { color: var(--tok-plain); }
 #reader .opn, #reader .clo { color: var(--tok-paren); }
+/* Rainbow parens on the page, as on the bench: `rainbow.ts` adds the depth class the edition's
+   prettifier never had, splitting a `))))` run so each paren can take its own. The grey above
+   stays the fallback for a listing the pass has not reached — and for a closer with nothing open,
+   which keeps the depth class off. */
+#reader pre .d0 { color: var(--tok-par0); }
+#reader pre .d1 { color: var(--tok-par1); }
+#reader pre .d2 { color: var(--tok-par2); }
 #reader .kwd { color: var(--tok-keyword); }
 #reader .lit { color: var(--tok-literal); }
 #reader .str { color: var(--tok-string); }

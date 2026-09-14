@@ -149,7 +149,14 @@ Seed cases are in `tests/cases/`; the book pipeline can emit more (`just book` w
   and source links a scroll below.
 - Visual identity follows the book: Libertine text on near-white stock, Biolinum for headings and
   labels, maroon cross-references, periwinkle numbering, chapter openers with the drop cap and
-  small-caps first line, listings in the edition's own prettify colours. The REPL is deliberately
+  small-caps first line, listings in the edition's own prettify colours — plus the one thing that
+  markup lacks: rainbow parens. `src/rainbow.ts` adds a `d0`/`d1`/`d2` depth class to every `opn`
+  and `clo` span as a chunk is injected, splitting a run like `))))` so each paren can take its
+  own, and leaving every class the edition set exactly as it set them. The three families are the
+  bench's (periwinkle, teal, ochre) so one nesting reads the same on the page and on the bench;
+  on paper they are pitched at the weight of the book's own literal green, equal to each other and
+  recessive against plain code, since the grey they replace was too faint to tell three hues apart
+  on a phone. The REPL is deliberately
   *not* paper — a slate bench under the page, one status line at rest.
 - Each `Run` evaluates in the session and shows result inline under the block.
 ### 3.2 Editor
