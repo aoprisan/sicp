@@ -16,8 +16,9 @@ const SPECIAL = new Set([
   "cons-stream", "delay", "named-lambda", "the-environment",
 ]);
 
-/** How many colours the parens cycle through before repeating. */
-const RAINBOW = 3;
+/** How many colours the parens cycle through before repeating. The book's listings cycle through
+    the same number, from `rainbow.ts`: one nesting reads the same on the page and on the bench. */
+export const RAINBOW = 3;
 
 export interface Token {
   start: number;

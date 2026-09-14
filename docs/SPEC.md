@@ -132,7 +132,16 @@ Seed cases are in `tests/cases/`; the book pipeline can emit more (`just book` w
   entry marked and scrolled to. It closes on Escape, on the veil, on its own × (the veil covers
   the header, so the button that opened it cannot close it), and on picking an entry; while it is
   open the book and the bench are `inert`. Under each chunk, page-turn links to the previous and
-  next entry in the same outline.
+  next entry in the same outline. Above the outline, on its own list and ruled off from it, the
+  drawer carries the one entry that is not a chunk: `λ Scheme interpreter`.
+- Two views, both hashes (`src/main.ts` `route()`), so the menu's entries stay ordinary links and
+  the back button walks between them: the book (`#c000`…), and `#scheme` — the interpreter alone,
+  the sheet no longer a sheet but the whole screen under the running head, with no handle and no
+  snap points (`body.view-bench`). The bench view needs no book: its menu entry is there before
+  `just book` has written a chunk, which is also the one way into the app when there is no text
+  to read. Leaving the book does not unload it — the reader reloads a chunk only when the id
+  changes (`Reader.at`), so coming back lands on the same page, at the same scroll, with the
+  results each `Run` printed still under their listings.
 - The book does not wait on the interpreter: the reader boots from `toc.json` and the worker's
   ready line arrives when it arrives.
 - The app opens on the cover chunk (`c000`): the title page set centred over Ramelli's bookwheel,
@@ -140,7 +149,14 @@ Seed cases are in `tests/cases/`; the book pipeline can emit more (`just book` w
   and source links a scroll below.
 - Visual identity follows the book: Libertine text on near-white stock, Biolinum for headings and
   labels, maroon cross-references, periwinkle numbering, chapter openers with the drop cap and
-  small-caps first line, listings in the edition's own prettify colours. The REPL is deliberately
+  small-caps first line, listings in the edition's own prettify colours — plus the one thing that
+  markup lacks: rainbow parens. `src/rainbow.ts` adds a `d0`/`d1`/`d2` depth class to every `opn`
+  and `clo` span as a chunk is injected, splitting a run like `))))` so each paren can take its
+  own, and leaving every class the edition set exactly as it set them. The three families are the
+  bench's (periwinkle, teal, ochre) so one nesting reads the same on the page and on the bench;
+  on paper they are pitched at the weight of the book's own literal green, equal to each other and
+  recessive against plain code, since the grey they replace was too faint to tell three hues apart
+  on a phone. The REPL is deliberately
   *not* paper — a slate bench under the page, one status line at rest.
 - Each `Run` evaluates in the session and shows result inline under the block.
 ### 3.2 Editor
@@ -159,12 +175,35 @@ Seed cases are in `tests/cases/`; the book pipeline can emit more (`just book` w
   the same on the way out as the expression did on the way in. `highlight()` escapes everything it
   emits — it is the only thing that may be assigned into `#output`'s `innerHTML`.
 - The palette is `--s-*` in `:root` and does not change with the theme: the bench is slate in both.
-- Custom key row: `( ) ' [ ] ; ← → ⏎ run kill`.
-- Auto-close `(`; Scheme-aware indentation on Enter; slurp/barf/wrap/unwrap buttons.
+- Custom key row: `( ) ' [ ] ; ← → ⏎ run kill`. Each key answers to a fingertip and to a keyboard:
+  `pointerdown` with its default prevented is what keeps the on-screen keyboard from closing under
+  a thumb, and a `keydown` handler beside it is what makes Enter and Space press the key for anyone
+  walking the row with Tab. The symbol keys carry `aria-label`s, since `▢→` and `( )` do not read
+  aloud.
+- Auto-close `(`; Scheme-aware indentation on Enter; slurp/barf/wrap/unwrap buttons. A paren typed
+  inside a string or a comment is just a character and does not auto-close (`Editor.context`).
+- Every edit the helpers make goes in through `Editor.splice` as `insertText`, the platform's own
+  editing command, not as `setRangeText` — which records nothing, so an auto-inserted closer could
+  never be undone and the buffer could not be undone to empty. `setRangeText` is the fallback where
+  `insertText` is refused.
+- Keyboard, in the editor: `(`/`)` auto-close and step over, Enter indents, Shift+Enter is a plain
+  newline, Ctrl/⌘-Enter evaluates (Run is the thumb's affordance; this is the keyboard's), and Tab
+  walks the holes of a template — but only while there are holes. With none it must fall through
+  and move focus on, and Shift+Tab always does: an editor a keyboard cannot leave is a trap, and
+  the key row is on the other side of it.
+- Holes are *selected*, not just stepped onto (`Editor.nextHole`), so the next keystroke replaces
+  one whatever it is. A hole typed past rather than filled leaves a legal symbol behind —
+  `(define (square▢ x) …)` reads, defines `square▢`, and never errors, because `square` is in the
+  prelude; the definition is simply dead.
 - Radial selector (`src/editor/radial.ts`): long-press or thumb button opens a ring anchored in a
-  configurable thumb zone; wedges depend on `form_at(cursor)`; templates with `▢` holes; "next
-  hole" gesture; second ring for recent identifiers from `env_names`. Haptics via
-  `navigator.vibrate` where available.
+  configurable thumb zone; wedges depend on `form_at(cursor)`; templates with `▢` holes, the first
+  of them selected on insertion; "next hole" gesture; second ring for recent identifiers from
+  `env_names`. Haptics via `navigator.vibrate` where available.
+- The ring cannot open until the worker says what form the cursor is in, and the worker answers
+  between slices of whatever it is evaluating — so every press carries a gesture number that a
+  release bumps, and an answer that arrives after its own gesture ended is dropped. Without that,
+  a tap on λ during a long run opened a ring with no finger down, which stayed up until the next
+  unrelated tap closed it and inserted whichever wedge the pointer was over.
 ### 3.3 Worker protocol
 ```
 → {type:'eval', id, src, budget}
