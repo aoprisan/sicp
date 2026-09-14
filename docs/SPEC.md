@@ -168,12 +168,35 @@ Seed cases are in `tests/cases/`; the book pipeline can emit more (`just book` w
   the same on the way out as the expression did on the way in. `highlight()` escapes everything it
   emits — it is the only thing that may be assigned into `#output`'s `innerHTML`.
 - The palette is `--s-*` in `:root` and does not change with the theme: the bench is slate in both.
-- Custom key row: `( ) ' [ ] ; ← → ⏎ run kill`.
-- Auto-close `(`; Scheme-aware indentation on Enter; slurp/barf/wrap/unwrap buttons.
+- Custom key row: `( ) ' [ ] ; ← → ⏎ run kill`. Each key answers to a fingertip and to a keyboard:
+  `pointerdown` with its default prevented is what keeps the on-screen keyboard from closing under
+  a thumb, and a `keydown` handler beside it is what makes Enter and Space press the key for anyone
+  walking the row with Tab. The symbol keys carry `aria-label`s, since `▢→` and `( )` do not read
+  aloud.
+- Auto-close `(`; Scheme-aware indentation on Enter; slurp/barf/wrap/unwrap buttons. A paren typed
+  inside a string or a comment is just a character and does not auto-close (`Editor.context`).
+- Every edit the helpers make goes in through `Editor.splice` as `insertText`, the platform's own
+  editing command, not as `setRangeText` — which records nothing, so an auto-inserted closer could
+  never be undone and the buffer could not be undone to empty. `setRangeText` is the fallback where
+  `insertText` is refused.
+- Keyboard, in the editor: `(`/`)` auto-close and step over, Enter indents, Shift+Enter is a plain
+  newline, Ctrl/⌘-Enter evaluates (Run is the thumb's affordance; this is the keyboard's), and Tab
+  walks the holes of a template — but only while there are holes. With none it must fall through
+  and move focus on, and Shift+Tab always does: an editor a keyboard cannot leave is a trap, and
+  the key row is on the other side of it.
+- Holes are *selected*, not just stepped onto (`Editor.nextHole`), so the next keystroke replaces
+  one whatever it is. A hole typed past rather than filled leaves a legal symbol behind —
+  `(define (square▢ x) …)` reads, defines `square▢`, and never errors, because `square` is in the
+  prelude; the definition is simply dead.
 - Radial selector (`src/editor/radial.ts`): long-press or thumb button opens a ring anchored in a
-  configurable thumb zone; wedges depend on `form_at(cursor)`; templates with `▢` holes; "next
-  hole" gesture; second ring for recent identifiers from `env_names`. Haptics via
-  `navigator.vibrate` where available.
+  configurable thumb zone; wedges depend on `form_at(cursor)`; templates with `▢` holes, the first
+  of them selected on insertion; "next hole" gesture; second ring for recent identifiers from
+  `env_names`. Haptics via `navigator.vibrate` where available.
+- The ring cannot open until the worker says what form the cursor is in, and the worker answers
+  between slices of whatever it is evaluating — so every press carries a gesture number that a
+  release bumps, and an answer that arrives after its own gesture ended is dropped. Without that,
+  a tap on λ during a long run opened a ring with no finger down, which stayed up until the next
+  unrelated tap closed it and inserted whichever wedge the pointer was over.
 ### 3.3 Worker protocol
 ```
 → {type:'eval', id, src, budget}

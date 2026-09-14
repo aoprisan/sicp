@@ -21,6 +21,10 @@ export class Radial {
   private cx = 0; private cy = 0;
   private sub = false;
   private open_ = false;
+  /** Which gesture the ring belongs to. Bumped on every press and on every release, so that an
+      answer from the interpreter arriving after its own gesture ended can be recognised and
+      dropped — see `open`. */
+  private gesture = 0;
 
   constructor(private editor: Editor, private worker: SchemeWorker) {
     this.svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -33,7 +37,14 @@ export class Radial {
   }
 
   async open(x: number, y: number) {
+    const mine = ++this.gesture;
+    // The wedges depend on the form at the cursor, and only the interpreter knows what that is —
+    // so the ring cannot open until the worker answers, and the worker answers between slices of
+    // whatever it is already evaluating. A tap on λ during a long run used to outlive its own
+    // pointer that way: the ring opened with no finger down, stayed open, and the next unrelated
+    // tap anywhere closed it and inserted whichever wedge the pointer happened to be over.
     const { head } = await this.worker.formAt(this.editor.value, this.editor.cursor);
+    if (mine !== this.gesture) return;             // the finger came up, or a new press began
     const menu = HEAD_TO_MENU[head] ?? "call";
     this.build(MENUS[menu]);
     // Offset upward so the thumb doesn't hide the ring.
@@ -92,13 +103,18 @@ export class Radial {
     if (i >= 0 && navigator.vibrate) navigator.vibrate(8);
     if (i >= 0 && this.items[i][1] === null && !this.sub) {
       this.sub = true;
+      const mine = this.gesture;
       const names = (await this.worker.envNames()).slice(-8).reverse();
+      if (mine !== this.gesture || !this.open_) return;   // released while the names were fetched
       this.build(names.map((n) => [n, n] as Item));
       this.highlight(-1); this.active = -1;
     }
   }
 
   private release() {
+    // Ends the gesture whether or not the ring managed to open in time: an `open` still waiting on
+    // the interpreter is cancelled by the same bump.
+    this.gesture++;
     if (!this.open_) return;
     this.open_ = false;
     this.svg.style.display = "none";

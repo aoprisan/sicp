@@ -54,7 +54,10 @@ async function run(src: string, echo = true): Promise<string> {
   return values.map((v) => ";Value: " + v).join("\n");
 }
 
-keyrow.onRun = () => run(editor.value).then(() => editor.clearIfWanted());
+// One way to evaluate, whether it is pressed with a thumb or with Ctrl/⌘-Enter.
+const runBuffer = () => run(editor.value).then(() => editor.clearIfWanted());
+keyrow.onRun = runBuffer;
+editor.onRun = runBuffer;
 keyrow.onKill = () => worker.interrupt();
 keyrow.onRadial = (x, y) => radial.open(x, y);
 editor.onLongPress = (x, y) => radial.open(x, y);

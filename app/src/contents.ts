@@ -57,11 +57,14 @@ export class Contents {
   }
 
   /** Read the outline and add the book to the menu. Without a book the drawer still opens on
-      the bench rather than on nothing. */
+      the bench rather than on nothing — and an outline that cannot be read must not take the app
+      down with it, since the caller boots the view on the back of this promise. A dev server
+      answering 200 with `index.html` for a missing chunk lands here too. */
   async load(): Promise<void> {
-    const res = await fetch(`${import.meta.env.BASE_URL}book/toc.json`);
-    if (!res.ok) return;
-    const toc = await res.json();
+    const toc = await fetch(`${import.meta.env.BASE_URL}book/toc.json`)
+      .then((res) => (res.ok ? res.json() : null))
+      .catch(() => null);
+    if (!toc) return;
     this.entries = (toc.chunks ?? []).map((c: Entry) => ({ id: c.id, label: c.label ?? c.id, level: c.level ?? 0 }));
     this.entries.forEach((e, i) => this.at.set(e.id, i));
     for (const e of this.entries) {
