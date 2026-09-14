@@ -73,7 +73,18 @@ set_runtime(seconds)                   // host clock, so `(runtime)` works in th
 `scheme/tests/cases/<chapter>_<name>.scm` with a paired `.expected` holding the transcript that
 MIT Scheme would print. Runner evaluates each top-level form, appends printed value/output, diffs.
 Seed cases are in `tests/cases/`; the book pipeline can emit more (`just book` writes
-`book/generated-cases/`, review before promoting).
+`book/generated-cases/`, review before promoting). Only `tests/cases/` is run by `just test` and
+only it is committed — `generated-cases/` is derived from the book text, so it is gitignored and
+rebuilt, and a case leaves it by being copied in by hand under a `<chapter>_<name>` of its own.
+
+Those drafts come from the `code[]` of § 2 and are drafts on purpose. Each is one listing, prefixed
+with the definitions its section made before it, and its `.expected` is assembled from what the book
+prints — `;Value:` per form, with a `define` taking the name it binds. That is a guess in three
+directions the pipeline cannot settle: the book prints `1/2` both for a value and for something
+`display`ed on the way to one; a listing may lean on a definition from an earlier section, or on
+one the surrounding prose gives only after it; and where the book and this interpreter genuinely
+disagree — MIT's case-folding reader printing `W1`, a float's last digit — the draft is the bug
+report, not the answer. Read one before promoting it.
 
 ## 2. Book pipeline (`book/`)
 - Source: https://github.com/sarabander/sicp (CC BY-SA 4.0 HTML5 edition with SVG figures),
@@ -83,7 +94,16 @@ Seed cases are in `tests/cases/`; the book pipeline can emit more (`just book` w
   so the app can name its source without hard-coding it twice.
 - `build_chunks.mjs`: parse `html/`, split by `<h3>`/exercise, emit
   `app/public/book/{toc.json, chunks/<id>.json}`. Each chunk: `{id, title, breadcrumb[], html,
-  code[]: {id, src, expected?}, exercises[]: {id, html, referencedCode[]}}`.
+  code[]: {id, src, expected?, template?}, exercises[]: {id, html, referencedCode[]}}`.
+- `code[]` is the chunk's listings, one entry per `<pre class="lisp …">` in reading order, and it
+  is what `book/generated-cases/` is generated from (§ 1.6). A listing is usually a transcript
+  rather than a program — an expression, then on the next line what MIT Scheme printed back — and
+  the edition sets those printed lines in italics, so the markup says where the code stops and the
+  answer starts: `src` is the code with the answers taken out, `expected` is the answers, absent
+  when the book shows none. `template: true` marks a listing that is syntax rather than code
+  (`(cond (⟨p₁⟩ ⟨e₁⟩) …)`): nothing to run and nothing to test. The prettifier appends its own
+  classes, so the class to match is `lisp` *followed by others* — matching `class="lisp"` exactly
+  finds none of the book's 1098 listings.
 - `toc.json` is the book's outline, and the app's menu is built from it: each entry is
   `{id, title, file, label, level}`. `label` is the name the book gives that part ("1.1 The
   Elements of Programming" — better than the `<title>`, which is just "1.1"), and `level` is 0 for
