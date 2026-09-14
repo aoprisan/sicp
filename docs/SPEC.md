@@ -132,7 +132,16 @@ Seed cases are in `tests/cases/`; the book pipeline can emit more (`just book` w
   entry marked and scrolled to. It closes on Escape, on the veil, on its own × (the veil covers
   the header, so the button that opened it cannot close it), and on picking an entry; while it is
   open the book and the bench are `inert`. Under each chunk, page-turn links to the previous and
-  next entry in the same outline.
+  next entry in the same outline. Above the outline, on its own list and ruled off from it, the
+  drawer carries the one entry that is not a chunk: `λ Scheme interpreter`.
+- Two views, both hashes (`src/main.ts` `route()`), so the menu's entries stay ordinary links and
+  the back button walks between them: the book (`#c000`…), and `#scheme` — the interpreter alone,
+  the sheet no longer a sheet but the whole screen under the running head, with no handle and no
+  snap points (`body.view-bench`). The bench view needs no book: its menu entry is there before
+  `just book` has written a chunk, which is also the one way into the app when there is no text
+  to read. Leaving the book does not unload it — the reader reloads a chunk only when the id
+  changes (`Reader.at`), so coming back lands on the same page, at the same scroll, with the
+  results each `Run` printed still under their listings.
 - The book does not wait on the interpreter: the reader boots from `toc.json` and the worker's
   ready line arrives when it arrives.
 - The app opens on the cover chunk (`c000`): the title page set centred over Ramelli's bookwheel,

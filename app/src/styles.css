@@ -193,6 +193,10 @@ body.nav-open #contents { transform: none; visibility: visible; transition: tran
 #contents .toc .num { flex: none; color: var(--peri); font-feature-settings: "lnum" 1; }
 #contents .toc a.on, #contents .toc a.on .num { color: var(--maroon); }
 #contents .toc a.on { background: var(--paper-edge); }
+/* The bench is not a chapter: it stands above the outline, ruled off from it, with a lambda
+   where a chapter carries its number. */
+#contents .toc.tools { padding: 0.4rem 0 0.45rem; border-bottom: 1px solid var(--rule); }
+#contents .toc.tools .num { font-family: var(--text); font-style: italic; font-size: 1.1em; }
 #contents .toc a:focus-visible { outline-offset: -3px; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -505,6 +509,43 @@ body.nav-open #contents { transform: none; visibility: visible; transition: tran
 #radial { position: absolute; width: 220px; height: 220px; pointer-events: none; display: none; }
 
 @media (prefers-reduced-motion: reduce) { #sheet { transition: none; } }
+
+/* ── The bench on its own ─────────────────────────────────────────────────── */
+/* `#scheme`: the interpreter as a view, not a drawer under the page. The book is put away rather
+   than unloaded, so coming back lands on the same page at the same scroll, and the sheet stops
+   being a sheet — no handle, no snap points, the whole screen under the running head. The
+   overrides spell out every snap-point class — `:not(.half):not(.full)` included — so they
+   outrank the peek rules above, which carry that same chain; the landscape split below they
+   outrank on specificity rather than on order. */
+body.view-bench {
+  display: grid; grid-template-columns: 1fr; grid-template-rows: auto 1fr;
+  height: 100dvh; overflow: hidden;
+}
+body.view-bench #reader, body.view-bench #sheet-handle { display: none; }
+body.view-bench #crumb { grid-row: 1; grid-column: 1; }
+body.view-bench #sheet:not(.half):not(.full),
+body.view-bench #sheet.half,
+body.view-bench #sheet.full {
+  position: relative; grid-row: 2; grid-column: 1;
+  height: auto; min-height: 0;
+  grid-template-rows: 1fr auto auto;
+  border-top: 0; border-left: 0; box-shadow: none; transition: none;
+}
+/* Nothing is a peek here: the transcript is the page. */
+body.view-bench #sheet:not(.half):not(.full) #output > :not(:last-child),
+body.view-bench #sheet:not(.half):not(.full) #output > :last-child {
+  display: block; -webkit-line-clamp: none;
+}
+body.view-bench #sheet:not(.half):not(.full) #editor-host { display: block; }
+body.view-bench #sheet:not(.half):not(.full) #keyrow { display: flex; }
+body.view-bench #output { min-height: 0; }
+/* Wide screens: the bench keeps a measure. A transcript ruled across 1400px is unreadable, and
+   the key row belongs under the thumb, not spread from edge to edge. */
+@media (min-width: 700px) {
+  body.view-bench #output, body.view-bench #editor-host, body.view-bench #keyrow {
+    width: 100%; max-width: 46rem; margin-inline: auto;
+  }
+}
 
 /* Landscape / tablet: book on the left, bench on the right. */
 @media (min-width: 900px) and (orientation: landscape) {
